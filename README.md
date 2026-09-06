@@ -29,7 +29,7 @@ So I made this.
 - 🖱️ **Mouse Control** — Move, left click, right click & more
 - ⌨️ **Keyboard Control** — Send keyboard keys and shortcuts
 - 🎵 **Media Control** — Play, pause, stop, next, previous & volume [Better control in VLC (Audio track change, Subtitle On Off)]
-- 🔊 **Soundboard** — Play sounds directly on your PC, with volume & loop
+- 🔊 **Soundboard** — Inbuilt soundboard Play sounds directly on your PC, using webui
 - 🚀 **App Launcher** — Launch your favorite PC applications
 - 🔗 **Custom Shortcuts** — Create your own shortcuts
 - 📂 **File & Media Browser** — Browse, open and download files
