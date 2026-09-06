@@ -16,7 +16,7 @@ Because apparently a keyboard and mouse weren't enough.
 So I made this.
 
 <p align="center">
-  <img src="assets/artwork.png" alt="ASSHOLE DECK Meme" width="600">
+  <img src="assets/artwork2.png" alt="ASSHOLE DECK Meme" width="600">
 </p>
 
 > **The bigger the hole, the bigger the control.** 🕳️
@@ -50,7 +50,7 @@ Basically:
 The desktop application runs the server and provides the local control system.
 
 <p align="center">
-  <img src="assets/pc-dashboard.png" alt="PC Dashboard" width="700">
+  <img src="assets/pc-Screenshot 2026-09-07 013516" alt="PC Dashboard" width="700">
 </p>
 
 ---
@@ -60,7 +60,7 @@ The desktop application runs the server and provides the local control system.
 Open this from your phone's browser and control the PC remotely.
 
 <p align="center">
-  <img src="assets/webui.png" alt="WebUI" width="700">
+  <img src="assets/Screenshot 2026-09-07 013600" alt="WebUI" width="700">
 </p>
 
 ---
@@ -89,7 +89,7 @@ Open this from your phone's browser and control the PC remotely.
 
 Built with ❤️, Python 🐍, caffeine ☕ and absolutely no common sense.
 
-**Created by [Tarun Sharma](https://github.com/YOUR_USERNAME)**
+**Created by [Tarun Sharma](https://github.com/r0otpapa)**
 
 > If it works, I made it.  
 > If it breaks, it was probably a feature. 💀
