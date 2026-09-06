@@ -50,7 +50,7 @@ Basically:
 The desktop application runs the server and provides the local control system.
 
 <p align="center">
-  <img src="asset/pc-Screenshot 2026-09-07 013516" alt="PC Dashboard" width="700">
+  <img src="asset/Screenshot 2026-09-07 013516.png" alt="PC Dashboard" width="700">
 </p>
 
 ---
@@ -60,7 +60,7 @@ The desktop application runs the server and provides the local control system.
 Open this from your phone's browser and control the PC remotely.
 
 <p align="center">
-  <img src="asset/Screenshot 2026-09-07 013600" alt="WebUI" width="700">
+  <img src="asset/Screenshot 2026-09-07 013600.png" alt="WebUI" width="700">
 </p>
 
 ---
