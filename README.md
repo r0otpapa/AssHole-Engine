@@ -82,3 +82,16 @@ Open this from your phone's browser and control the PC remotely.
    ├── 🔊 pygame
    ├── 📂 File System
    └── ⚙️ Windows Controls
+
+---
+```
+### 🖤 Made With Questionable Decisions
+
+Built with ❤️, Python 🐍, caffeine ☕ and absolutely no common sense.
+
+**Created by [Tarun Sharma](https://github.com/YOUR_USERNAME)**
+
+> If it works, I made it.  
+> If it breaks, it was probably a feature. 💀
+
+**© 2026 Tarun Sharma — ASSHOLE DECK**
