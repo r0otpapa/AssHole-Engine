@@ -33,7 +33,7 @@ So I made this.
 - 🚀 **App Launcher** — Launch your favorite PC applications
 - 🔗 **Custom Shortcuts** — Create your own shortcuts
 - 📂 **File & Media Browser** — Browse, open and download files
-- 📸 **Screenshot** — Capture your PC screen remotely
+- 📸 **Screenshot & Screen record** — Capture your PC screen remotely
 - ☀️ **Brightness Control** — Control screen brightness
 - 🔊 **System Controls** — Control supported PC functions
 - 📱 **QR Connection** — Scan and connect instantly
