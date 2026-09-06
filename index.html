@@ -1,0 +1,3218 @@
+<!DOCTYPE html>
+
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+
+<title>ASSHOLE - Remote Engine Dashboard</title>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    * {
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                     Roboto, sans-serif;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    html {
+        min-height: 100%;
+        background: #0b0e14;
+        scroll-behavior: smooth;
+    }
+
+    body {
+        background: #0b0e14;
+        color: #f3f3f3;
+        margin: 0;
+        padding: 10px;
+        min-height: 100vh;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    /* ================= HEADER ================= */
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #1f2937;
+        padding-bottom: 7px;
+        margin-bottom: 5px;
+        flex-shrink: 0;
+    }
+
+.brand {
+    font-size: 15px;
+    font-weight: 900;
+    color: #ff4757;
+    letter-spacing: 1.2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.brand i {
+    font-size: 28px;
+    color: #ff4757;
+    line-height: 1;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 0.95;
+}
+
+.brand-asshole {
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+}
+
+.brand-engine {
+    font-size: 9px;
+    font-weight: 800;
+    color: #66c0f4;
+    letter-spacing: 2px;
+    margin-top: 3px;
+}
+
+    .header-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .header-btn {
+        background: #1b2838;
+        border: 1px solid #2a475e;
+        color: #34d399;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .header-btn:active {
+        transform: scale(.94);
+        background: #ff4757;
+        color: white;
+    }
+
+    .status-badge {
+        background: #064e3b;
+        color: #34d399;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 700;
+        border: 1px solid #059669;
+    }
+
+    /* ================= TAGLINE ================= */
+
+    .tagline {
+        text-align: center;
+        color: #64748b;
+        font-size: 8px;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        margin: 0 0 7px;
+        flex-shrink: 0;
+    }
+
+    .tagline span {
+        color: #94a3b8;
+    }
+
+    /* ================= SECTIONS ================= */
+
+    .section-title {
+    color: #8b929a;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    margin: 6px 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-shrink: 0;
+}
+
+    .section-title > span {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 5px;
+}
+    .horizontal-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 4px;
+        flex-shrink: 0;
+        scrollbar-width: none;
+    }
+
+    .horizontal-row::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* ================= BUTTONS ================= */
+
+    .deck-btn {
+        min-width: 80px;
+        padding: 9px 6px;
+        background: linear-gradient(145deg, #1b2838, #121923);
+        color: #fff;
+        border: 1px solid #2a475e;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0,0,0,.4);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+        transition: all .1s ease;
+    }
+
+    .deck-btn i {
+        font-size: 22px;
+        transition: .15s ease;
+        text-shadow: 0 0 3px currentColor;
+    }
+
+    .deck-btn:active {
+        transform: scale(.92);
+        background: #ff4757;
+        border-color: #ff6b81;
+    }
+
+    .danger-btn {
+        border-color: #991b1b;
+        background: linear-gradient(145deg, #451a1a, #1a0909);
+    }
+
+    /* ================= COLORFUL SYSTEM ICONS ================= */
+
+    .system-controls .deck-btn:nth-child(1) i {
+        color: #60a5fa;
+    }
+
+    .system-controls .deck-btn:nth-child(2) i {
+        color: #12e28c;
+    }
+
+    .system-controls .deck-btn:nth-child(3) i {
+        color: #ef4444;
+    }
+
+    .system-controls .deck-btn:nth-child(4) i {
+        color: #fb7185;
+    }
+
+    .system-controls .deck-btn:nth-child(5) i {
+        color: #facc15;
+    }
+
+    .system-controls .deck-btn:nth-child(6) i {
+        color: #818cf8;
+    }
+
+    .system-controls .deck-btn:nth-child(7) i {
+        color: #f97316;
+    }
+
+    .system-controls .deck-btn:nth-child(8) i {
+        color: #ef4444;
+    }
+
+    /* ================= COLORFUL NAVIGATION ICONS ================= */
+
+    .nav-controls .deck-btn:nth-child(1) i {
+        color: #38bdf8;
+    }
+
+    .nav-controls .deck-btn:nth-child(2) i {
+        color: #22c55e;
+    }
+
+    .nav-controls .deck-btn:nth-child(3) i {
+        color: #a78bfa;
+    }
+
+    .nav-controls .deck-btn:nth-child(4) i {
+        color: #f97316;
+    }
+
+    .nav-controls .deck-btn:nth-child(5) i {
+        color: #06b6d4;
+    }
+
+    .nav-controls .deck-btn:nth-child(6) i {
+        color: #eab308;
+    }
+
+    .nav-controls .deck-btn:nth-child(7) i {
+        color: #ec4899;
+    }
+
+    .nav-controls .deck-btn:nth-child(8) i {
+        color: #14b8a6;
+    }
+
+    /* ================= COLORFUL MEDIA ICONS ================= */
+
+    .media-controls .deck-btn:nth-child(1) i {
+        color: #4ade80;
+    }
+
+    .media-controls .deck-btn:nth-child(2) i {
+        color: #38bdf8;
+    }
+
+    .media-controls .deck-btn:nth-child(3) i {
+        color: #eb355c;
+    }
+
+    .media-controls .deck-btn:nth-child(4) i {
+        color: #22c55e;
+    }
+
+    .media-controls .deck-btn:nth-child(5) i {
+        color: #60a5fa;
+    }
+
+    .media-controls .deck-btn:nth-child(6) i {
+        color: #f43f5e;
+    }
+
+    .media-controls .deck-btn:nth-child(7) i {
+        color: #fbbf24;
+    }
+
+    .media-controls .deck-btn:nth-child(8) i {
+        color: #6c7c0e;
+    }
+
+    /* ================= TOP 10 APPS ================= */
+
+    .app-top-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+        flex-shrink: 0;
+    }
+
+    .app-top-row::-webkit-scrollbar {
+        display: none;
+    }
+
+    .app-icon-btn {
+        width: 68px;
+        height: 60px;
+        min-width: 68px;
+        background: linear-gradient(145deg,#1e2837,#101721);
+        border: 1px solid #2a3f5a;
+        border-radius: 10px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+    }
+
+    .app-icon-btn i {
+        font-size: 23px;
+    }
+
+    .app-icon-name {
+        font-size: 8px;
+        max-width: 58px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .view-all-btn {
+        display: flex;
+        background: #1b2838;
+        border: 1px solid #2a475e;
+        color: #66c0f4;
+        padding: 5px 9px;
+        border-radius: 6px;
+        font-size: 9px;
+        font-weight: bold;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    /* ================= MEDIA / FILE EXPLORER ================= */
+
+    .media-container {
+        width: 100%;
+        flex: 0 0 auto;
+        min-height: 130px;
+        max-height: 42vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        background: rgba(10, 14, 20, .35);
+        border-radius: 7px;
+        padding: 2px 2px 5px;
+        scrollbar-width: thin;
+        scrollbar-color: #2a475e #0b0e14;
+    }
+
+    .media-container::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .media-container::-webkit-scrollbar-track {
+        background: #0b0e14;
+        border-radius: 10px;
+    }
+
+    .media-container::-webkit-scrollbar-thumb {
+        background: #2a475e;
+        border-radius: 10px;
+    }
+
+    .explorer-toolbar {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin-bottom: 5px;
+        flex-shrink: 0;
+    }
+
+    #mediaSourceSelect {
+        flex: 1;
+        min-width: 0;
+        background: #121923;
+        color: white;
+        border: 1px solid #2a475e;
+        border-radius: 6px;
+        padding: 6px;
+        font-size: 10px;
+        outline: none;
+    }
+
+    /* MEDIA / ALL TOGGLE */
+
+    .file-mode-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #121923;
+        border: 1px solid #2a475e;
+        padding: 4px 7px;
+        border-radius: 20px;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .toggle-label {
+        font-size: 8px;
+        font-weight: 800;
+        color: #8b929a;
+    }
+
+    .toggle-switch {
+        width: 34px;
+        height: 18px;
+        background: #374151;
+        border-radius: 20px;
+        position: relative;
+        transition: .2s;
+    }
+
+    .toggle-switch::after {
+        content: "";
+        width: 14px;
+        height: 14px;
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        background: #fff;
+        border-radius: 50%;
+        transition: .2s;
+    }
+
+    .file-mode-toggle.all .toggle-switch {
+        background: #059669;
+    }
+
+    .file-mode-toggle.all .toggle-switch::after {
+        transform: translateX(16px);
+    }
+
+    .folder-nav {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #121923;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border-left: 3px solid #ff4757;
+        font-size: 10px;
+        font-weight: bold;
+        color: #66c0f4;
+        margin-bottom: 4px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 0;
+        z-index: 3;
+    }
+
+    .back-btn {
+        background: #ff4757;
+        color: white;
+        border: none;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 9px;
+        cursor: pointer;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    .media-grid {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        overflow: visible;
+        padding: 1px 1px 12px;
+        width: 100%;
+    }
+
+    .tile {
+        min-width: 95px;
+        max-width: 105px;
+        background: linear-gradient(160deg,#1e2837,#101721);
+        padding: 8px 5px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 10px;
+        font-weight: 600;
+        word-break: break-word;
+        border: 1px solid #2a3f5a;
+        box-shadow: 0 4px 8px rgba(0,0,0,.5);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 72px;
+        flex-shrink: 0;
+    }
+
+    .tile:active {
+        border-color: #ff4757;
+        background: #2a475e;
+        transform: scale(.94);
+    }
+
+    .tile-icon {
+        font-size: 18px;
+        margin-bottom: 4px;
+        color: #1a9fff;
+    }
+
+    .file-actions {
+        display: none;
+    }
+
+    /* ================= MODAL ================= */
+
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,.86);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        padding: 10px;
+    }
+
+    .modal-content {
+        background: #121923;
+        border: 1px solid #2a475e;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 650px;
+        height: 88vh;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 15px 40px rgba(0,0,0,.9);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        background: #1b2838;
+        border-bottom: 1px solid #2a475e;
+        flex-shrink: 0;
+    }
+
+    .modal-title {
+        font-size: 13px;
+        font-weight: bold;
+        color: #34d399;
+    }
+
+    .close-modal {
+        background: #ff4757;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 5px 9px;
+        font-size: 10px;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        padding: 10px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        flex-grow: 1;
+        scrollbar-width: thin;
+        scrollbar-color: #2a475e #121923;
+    }
+
+    /* ================= ALL APPS ================= */
+
+    .all-apps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill,minmax(95px,1fr));
+        gap: 8px;
+    }
+
+    .all-app-card {
+        background: linear-gradient(160deg,#1e2837,#101721);
+        border: 1px solid #2a3f5a;
+        border-radius: 8px;
+        min-height: 82px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        cursor: pointer;
+        padding: 7px;
+    }
+
+    .all-app-card i {
+        font-size: 22px;
+    }
+
+    .all-app-card span {
+        font-size: 9px;
+        text-align: center;
+        word-break: break-word;
+    }
+
+    /* ================= SOUNDBOARD ================= */
+
+    .sound-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill,minmax(110px,1fr));
+        gap: 8px;
+    }
+
+    .sound-card {
+        background: linear-gradient(145deg,#1b2838,#101721);
+        border: 1px solid #2a475e;
+        border-radius: 9px;
+        padding: 10px 6px;
+        min-height: 80px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .sound-name {
+        font-size: 9px;
+        text-align: center;
+        word-break: break-word;
+        color: #dbeafe;
+    }
+
+    .sound-play-btn {
+        width: 100%;
+        background: #064e3b;
+        color: #34d399;
+        border: 1px solid #059669;
+        border-radius: 6px;
+        padding: 6px;
+        font-size: 9px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .sound-play-btn:active {
+        background: #ff4757;
+        color: white;
+    }
+
+    .sound-control-bar {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .sound-control-btn {
+        flex: 1;
+        background: #1b2838;
+        border: 1px solid #2a475e;
+        color: white;
+        border-radius: 6px;
+        padding: 7px;
+        font-size: 10px;
+        cursor: pointer;
+    }
+
+    /* ================= FILE POPUP ================= */
+
+    .file-popup {
+        max-width: 360px;
+        height: auto;
+        max-height: 70vh;
+    }
+
+    .selected-file-name {
+        text-align: center;
+        color: #66c0f4;
+        font-size: 11px;
+        font-weight: bold;
+        padding: 12px 5px;
+        word-break: break-word;
+    }
+
+    .file-action-big {
+        width: 100%;
+        border: 1px solid #2a475e;
+        background: #1b2838;
+        color: white;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 8px;
+        font-size: 11px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .file-action-big.open {
+        color: #34d399;
+    }
+
+    .file-action-big.download {
+        color: #66c0f4;
+    }
+
+    .file-action-big:active {
+        background: #ff4757;
+        color: white;
+        transform: scale(.97);
+    }
+
+    /* ================= IO ================= */
+
+    .tab-bar {
+        display: flex;
+        background: #0b0e14;
+        border-radius: 6px;
+        padding: 3px;
+        gap: 4px;
+        margin-bottom: 10px;
+    }
+
+    .tab-btn {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #8b929a;
+        padding: 7px;
+        font-size: 11px;
+        font-weight: bold;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .tab-btn.active {
+        background: #1b2838;
+        color: #fff;
+    }
+
+    .tab-pane {
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .tab-pane.active {
+        display: flex;
+    }
+
+    .vk-grid {
+        display: grid;
+        grid-template-columns: repeat(13,1fr);
+        gap: 3px;
+    }
+
+    .vk-btn {
+        background: #1b2838;
+        border: 1px solid #2a475e;
+        color: white;
+        padding: 8px 2px;
+        font-size: 9px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .vk-btn:active {
+        background: #ff4757;
+    }
+
+    .trackpad-area {
+        background: #1b2838;
+        border: 2px dashed #2a475e;
+        border-radius: 10px;
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #34d399;
+        font-weight: bold;
+        font-size: 12px;
+        text-align: center;
+        touch-action: none;
+    }
+
+    .mouse-btns {
+        display: flex;
+        gap: 8px;
+    }
+
+    .mouse-btn {
+        flex: 1;
+        background: #1b2838;
+        border: 1px solid #2a475e;
+        color: white;
+        padding: 10px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 11px;
+        cursor: pointer;
+        text-align: center;
+    }
+
+    .mouse-btn:active {
+        background: #ff4757;
+    }
+
+    /* ================= FOOTER ================= */
+
+    .footer {
+        flex-shrink: 0;
+        margin-top: 12px;
+        padding: 10px 5px 5px;
+        border-top: 1px solid #1f2937;
+        text-align: center;
+        color: #475569;
+        font-size: 9px;
+        letter-spacing: .5px;
+    }
+
+    .footer-created {
+        color: #64748b;
+    }
+
+    .footer-author {
+        color: #ff4757;
+        font-weight: 800;
+    }
+
+    .footer-github {
+        color: #66c0f4;
+        text-decoration: none;
+        margin-left: 5px;
+        font-weight: 700;
+    }
+
+    .footer-github:hover {
+        color: #38bdf8;
+    }
+
+    .footer-github i {
+        margin-right: 3px;
+    }
+
+    /* ================= MOBILE ================= */
+
+    @media (max-width: 600px) {
+
+        body {
+            padding: 8px;
+        }
+
+        .brand {
+            font-size: 13px;
+        }
+
+        .header-btn {
+            padding: 6px 7px;
+            font-size: 9px;
+        }
+
+        .status-badge {
+            font-size: 8px;
+            padding: 3px 6px;
+        }
+
+        .deck-btn {
+            min-width: 76px;
+        }
+
+        .media-container {
+            max-height: 45vh;
+        }
+
+        .tile {
+            min-width: 86px;
+            max-width: 96px;
+        }
+
+        .vk-grid {
+            grid-template-columns: repeat(8,1fr);
+        }
+    }
+
+    /* ================= SMALL PHONES ================= */
+
+    @media (max-width: 380px) {
+
+        .header-actions {
+            gap: 3px;
+        }
+
+        .header-btn {
+            padding: 5px;
+        }
+
+        .header-btn i {
+            margin-right: 2px;
+        }
+
+        .media-container {
+            max-height: 43vh;
+        }
+
+        .tile {
+            min-width: 80px;
+            max-width: 90px;
+        }
+    }
+</style>
+
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+
+<div class="header">
+
+
+<div class="brand">
+    <i class="fa-solid fa-gamepad"></i>
+
+    <div class="brand-text">
+        <div class="brand-asshole">ASSHOLE</div>
+        <div class="brand-engine">ENGINE</div>
+    </div>
+</div>
+
+<div class="header-actions">
+
+    <button class="header-btn"
+            onclick="openSoundboardModal()">
+
+        <i class="fa-solid fa-volume-high"></i>
+        Soundboard
+
+    </button>
+
+    <button class="header-btn"
+            onclick="openIOModal()">
+
+        <i class="fa-solid fa-keyboard"></i>
+        I/O
+
+    </button>
+
+    <div class="status-badge">
+        ONLINE
+    </div>
+
+</div>
+
+
+</div>
+
+<!-- ================= TAGLINE ================= -->
+
+<div class="tagline">
+    <span> ONE HOLE INFINITE CONTROL </span>
+</div>
+
+<!-- ================= SHORTCUTS ================= -->
+
+<div class="section-title">
+
+
+<span>
+    <i class="fa-solid fa-bolt"></i>
+    Custom Shortcuts Panel
+</span>
+
+
+</div>
+
+<div id="customShortcutList"
+     class="horizontal-row">
+
+```
+<div class="deck-btn">
+    <span>Loading...</span>
+</div>
+```
+
+</div>
+
+<!-- ================= SYSTEM ================= -->
+
+<div class="section-title">
+
+
+<span>
+    <i class="fa-solid fa-desktop"></i>
+    System & Capture Controls
+</span>
+
+
+</div>
+
+<div class="horizontal-row system-controls">
+
+```
+<button class="deck-btn"
+        onclick="sendMedia('minimize_all')">
+
+    <i class="fa-solid fa-window-minimize"></i>
+
+    <span style="font-size:9px;">
+        MINIMIZE ALL
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('screenshot')">
+
+    <i class="fa-solid fa-camera"></i>
+
+    <span style="font-size:9px;">
+        SCREENSHOT
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('record_screen')">
+
+    <i class="fa-solid fa-circle-dot"></i>
+
+    <span style="font-size:9px;">
+        RECORD
+    </span>
+
+</button>
+
+<button class="deck-btn danger-btn"
+        onclick="confirmPower('close_app')">
+
+    <i class="fa-solid fa-xmark"></i>
+
+    <span style="font-size:9px;">
+        CLOSE APP
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('lock_pc')">
+
+    <i class="fa-solid fa-lock"></i>
+
+    <span style="font-size:9px;">
+        LOCK PC
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('sleep_pc')">
+
+    <i class="fa-solid fa-moon"></i>
+
+    <span style="font-size:9px;">
+        SLEEP
+    </span>
+
+</button>
+
+<button class="deck-btn danger-btn"
+        onclick="confirmPower('restart_pc')">
+
+    <i class="fa-solid fa-rotate-right"></i>
+
+    <span style="font-size:9px;">
+        RESTART
+    </span>
+
+</button>
+
+<button class="deck-btn danger-btn"
+        onclick="confirmPower('shutdown_pc')">
+
+    <i class="fa-solid fa-power-off"></i>
+
+    <span style="font-size:9px;">
+        SHUTDOWN
+    </span>
+
+</button>
+```
+
+</div>
+
+<!-- ================= NAVIGATION ================= -->
+
+<div class="section-title">
+
+
+<span>
+    <i class="fa-solid fa-compass"></i>
+    Navigation & Arrow Keys
+</span>
+
+
+</div>
+
+<div class="horizontal-row nav-controls">
+
+```
+<button class="deck-btn"
+        onclick="sendMedia('arrow_up')">
+
+    <i class="fa-solid fa-arrow-up"></i>
+
+    <span style="font-size:9px;">
+        UP
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('arrow_down')">
+
+    <i class="fa-solid fa-arrow-down"></i>
+
+    <span style="font-size:9px;">
+        DOWN
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('arrow_left')">
+
+    <i class="fa-solid fa-arrow-left"></i>
+
+    <span style="font-size:9px;">
+        LEFT
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('arrow_right')">
+
+    <i class="fa-solid fa-arrow-right"></i>
+
+    <span style="font-size:9px;">
+        RIGHT
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('ctrl_up')">
+
+    <i class="fa-solid fa-angles-up"></i>
+
+    <span style="font-size:9px;">
+        CTRL + UP
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('ctrl_down')">
+
+    <i class="fa-solid fa-angles-down"></i>
+
+    <span style="font-size:9px;">
+        CTRL + DOWN
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('ctrl_left')">
+
+    <i class="fa-solid fa-backward-fast"></i>
+
+    <span style="font-size:9px;">
+        CTRL + LEFT
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('ctrl_right')">
+
+    <i class="fa-solid fa-forward-fast"></i>
+
+    <span style="font-size:9px;">
+        CTRL + RIGHT
+    </span>
+
+</button>
+```
+
+</div>
+
+<!-- ================= MEDIA CONTROLS ================= -->
+
+<div class="section-title">
+
+
+<span>
+    <i class="fa-solid fa-sliders"></i>
+    Audio, Media & Display
+</span>
+
+
+</div>
+
+<div class="horizontal-row media-controls">
+
+```
+<button class="deck-btn"
+        onclick="sendMedia('play_pause')">
+
+    <i class="fa-solid fa-play-pause"></i>
+
+    <span style="font-size:9px;">
+        PLAY/PAUSE
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('switch_audio')">
+
+    <i class="fa-solid fa-headset"></i>
+
+    <span style="font-size:9px;">
+        AUDIO TRACK
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('switch_subtitle')">
+
+    <i class="fa-solid fa-closed-captioning"></i>
+
+    <span style="font-size:9px;">
+        SUBTITLE
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('vol_up')">
+
+    <i class="fa-solid fa-volume-high"></i>
+
+    <span style="font-size:9px;">
+        VOL UP
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('vol_down')">
+
+    <i class="fa-solid fa-volume-low"></i>
+
+    <span style="font-size:9px;">
+        VOL DOWN
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('mute')">
+
+    <i class="fa-solid fa-volume-xmark"></i>
+
+    <span style="font-size:9px;">
+        MUTE
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('bright_up')">
+
+    <i class="fa-solid fa-sun"></i>
+
+    <span style="font-size:9px;">
+        BRIGHT +
+    </span>
+
+</button>
+
+<button class="deck-btn"
+        onclick="sendMedia('bright_down')">
+
+    <i class="fa-regular fa-sun"></i>
+
+    <span style="font-size:9px;">
+        BRIGHT -
+    </span>
+
+</button>
+```
+
+</div>
+
+<!-- ================= APPLICATIONS ================= -->
+
+<div class="section-title">
+
+
+<span>
+    <i class="fa-solid fa-rocket"></i>
+    Applications & Web Links
+</span>
+
+<button class="view-all-btn"
+        onclick="openAppsModal()">
+
+    <i class="fa-solid fa-grip"></i>
+    > VIEW ALL
+
+</button>
+
+
+</div>
+
+<div id="appTopList"
+     class="app-top-row">
+
+```
+<div class="app-icon-btn">
+    <span>Loading...</span>
+</div>
+```
+
+</div>
+
+<!-- ================= FILE EXPLORER ================= -->
+
+<div class="section-title">
+
+
+<span>
+    <i class="fa-solid fa-folder-tree"></i>
+    File Explorer
+</span>
+
+<span id="explorerModeLabel">
+    /MEDIA FILES
+</span>
+
+
+</div>
+
+<div class="explorer-toolbar">
+
+```
+<select id="mediaSourceSelect"
+        onchange="loadMedia()">
+
+    <option value="">
+        All configured folders
+    </option>
+
+</select>
+
+<div id="fileModeToggle"
+     class="file-mode-toggle"
+     onclick="toggleMediaMode()">
+
+    <span class="toggle-label"
+          id="toggleLabel">
+        MEDIA
+    </span>
+
+    <div class="toggle-switch"></div>
+
+    <span class="toggle-label">
+        ALL
+    </span>
+
+</div>
+```
+
+</div>
+
+<!--
+    File Explorer has its own scroll area.
+    This prevents large file lists from covering
+    Applications & Web Links.
+-->
+
+<div class="media-container">
+
+
+<div id="folderNav"
+     class="folder-nav"
+     style="display:none;">
+
+    <button class="back-btn"
+            onclick="navigateBack()">
+
+        <i class="fa-solid fa-arrow-left"></i>
+        BACK
+
+    </button>
+
+    <span id="currentFolderPath">
+        Root
+    </span>
+
+</div>
+
+<div id="mediaGrid"
+     class="media-grid">
+
+    <div class="tile">
+        <span>Loading...</span>
+    </div>
+
+</div>
+
+
+</div>
+
+<!-- ================= ALL APPS MODAL ================= -->
+
+<div id="appsModal"
+     class="modal-overlay">
+
+```
+<div class="modal-content">
+
+    <div class="modal-header">
+
+        <div class="modal-title">
+
+            <i class="fa-solid fa-rocket"></i>
+            All Applications & Web Links
+
+        </div>
+
+        <button class="close-modal"
+                onclick="closeAppsModal()">
+
+            ✕ Close
+
+        </button>
+
+    </div>
+
+    <div class="modal-body">
+
+        <div id="allAppsGrid"
+             class="all-apps-grid">
+
+            <div style="color:#8b929a;font-size:11px;">
+                Loading...
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+```
+
+</div>
+
+<!-- ================= SOUNDBOARD MODAL ================= -->
+
+<div id="soundboardModal"
+     class="modal-overlay">
+
+```
+<div class="modal-content">
+
+    <div class="modal-header">
+
+        <div class="modal-title">
+
+            <i class="fa-solid fa-volume-high"></i>
+            PC Soundboard
+
+        </div>
+
+        <button class="close-modal"
+                onclick="closeSoundboardModal()">
+
+            ✕ Close
+
+        </button>
+
+    </div>
+
+    <div class="modal-body">
+
+        <div class="sound-control-bar">
+
+            <button class="sound-control-btn"
+                    onclick="controlSoundPlayer('pause')">
+
+                <i class="fa-solid fa-pause"></i>
+                PAUSE / RESUME
+
+            </button>
+
+            <button class="sound-control-btn"
+                    onclick="controlSoundPlayer('stop')">
+
+                <i class="fa-solid fa-stop"></i>
+                STOP
+
+            </button>
+
+        </div>
+
+        <div id="playerCurrent"
+             style="font-size:10px;color:#34d399;margin-bottom:10px;">
+
+            Player ready
+
+        </div>
+
+        <div id="soundGrid"
+             class="sound-grid">
+
+            <div style="color:#8b929a;font-size:10px;">
+                Loading soundboard...
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+```
+
+</div>
+
+<!-- ================= FILE ACTION MODAL ================= -->
+
+<div id="fileActionModal"
+     class="modal-overlay">
+
+```
+<div class="modal-content file-popup">
+
+    <div class="modal-header">
+
+        <div class="modal-title">
+
+            <i class="fa-solid fa-file"></i>
+            File Actions
+
+        </div>
+
+        <button class="close-modal"
+                onclick="closeFileActionModal()">
+
+            ✕ Close
+
+        </button>
+
+    </div>
+
+    <div class="modal-body">
+
+        <div id="selectedFileName"
+             class="selected-file-name">
+        </div>
+
+        <button class="file-action-big open"
+                onclick="openSelectedFile()">
+
+            <i class="fa-solid fa-folder-open"></i>
+            OPEN / RUN ON PC
+
+        </button>
+
+        <button class="file-action-big download"
+                onclick="downloadSelectedFile()">
+
+            <i class="fa-solid fa-download"></i>
+            DOWNLOAD TO PHONE
+
+        </button>
+
+    </div>
+
+</div>
+```
+
+</div>
+
+<!-- ================= KEYBOARD / TRACKPAD MODAL ================= -->
+
+<div id="ioModal"
+     class="modal-overlay">
+
+```
+<div class="modal-content">
+
+    <div class="modal-header">
+
+        <div class="modal-title">
+
+            <i class="fa-solid fa-keyboard"></i>
+            Remote Keyboard & Trackpad
+
+        </div>
+
+        <button class="close-modal"
+                onclick="closeIOModal()">
+
+            ✕ Close
+
+        </button>
+
+    </div>
+
+    <div class="modal-body">
+
+        <div class="tab-bar">
+
+            <button class="tab-btn active"
+                    onclick="switchTab('keyboard',this)">
+
+                Keyboard
+
+            </button>
+
+            <button class="tab-btn"
+                    onclick="switchTab('trackpad',this)">
+
+                Trackpad
+
+            </button>
+
+        </div>
+
+        <!-- KEYBOARD -->
+
+        <div id="pane-keyboard"
+             class="tab-pane active">
+
+            <div style="display:flex;gap:6px;">
+
+                <input
+                    type="text"
+                    id="typeInput"
+                    placeholder="Type text to send..."
+                    style="
+                        flex:1;
+                        background:#0b0e14;
+                        border:1px solid #2a475e;
+                        color:#fff;
+                        padding:6px;
+                        border-radius:4px;
+                        font-size:11px;
+                    "
+                >
+
+                <button
+                    onclick="sendTypedText()"
+                    style="
+                        background:#ff4757;
+                        color:#fff;
+                        border:none;
+                        padding:6px 12px;
+                        border-radius:4px;
+                        font-size:11px;
+                        font-weight:bold;
+                    ">
+
+                    Send
+
+                </button>
+
+            </div>
+
+            <div class="vk-grid"
+                 id="virtualKeyboardGrid">
+            </div>
+
+        </div>
+
+        <!-- TRACKPAD -->
+
+        <div id="pane-trackpad"
+             class="tab-pane">
+
+            <div class="trackpad-area"
+                 id="trackpadBox">
+
+                <div>
+
+                    <i class="fa-solid fa-hand-pointer"
+                       style="font-size:24px;">
+                    </i>
+
+                    <br>
+
+                    Touch & Drag Here
+
+                    <br>
+
+                    to Move Mouse
+
+                </div>
+
+            </div>
+
+            <div class="mouse-btns">
+
+                <div class="mouse-btn"
+                     onclick="sendMouseClick('click')">
+
+                    Left Click
+
+                </div>
+
+                <div class="mouse-btn"
+                     onclick="sendMouseClick('right_click')">
+
+                    Right Click
+
+                </div>
+
+                <div class="mouse-btn"
+                     onclick="sendMouseClick('double_click')">
+
+                    Double Click
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+```
+
+</div>
+
+<!-- ================= FOOTER ================= -->
+
+<div class="footer">
+
+
+<span class="footer-created">
+    Created by
+</span>
+
+<span class="footer-author">
+    r0otpapa
+</span>
+
+<a class="footer-github"
+   href="https://github.com/r0otpapa/AssHole-Engine"
+   target="_blank"
+   rel="noopener noreferrer">
+
+    <i class="fa-brands fa-github"></i>
+    GitHub
+
+</a>
+
+
+</div>
+
+<script>
+
+    const socket = io();
+
+    let rawMediaData = [];
+    let navigationHistory = [];
+    let currentMediaMode = "media";
+    let selectedFilePath = "";
+    let selectedFileName = "";
+
+    /* ================= SOCKET ================= */
+
+    function sendMedia(action) {
+
+        socket.emit("media_control", {
+            action: action
+        });
+
+    }
+
+    function confirmPower(action) {
+
+        const messages = {
+
+            close_app:
+                "Kya aap Active App ko Close karna chahte hain (Alt+F4)?",
+
+            restart_pc:
+                "Kya aap PC ko Restart karna chahte hain?",
+
+            shutdown_pc:
+                "Kya aap PC ko Shutdown karna chahte hain?"
+
+        };
+
+        if (confirm(messages[action] || "Confirm Action?")) {
+            sendMedia(action);
+        }
+
+    }
+
+    /* ================= ICON ================= */
+
+    function getFileIconHTML(filename, isDir = false) {
+
+        if (isDir) {
+
+            return '<i class="fa-solid fa-folder" style="color:#facc15;"></i>';
+
+        }
+
+        const ext =
+            (filename.split(".").pop() || "").toLowerCase();
+
+        if (
+            ["mp4","mkv","avi","mov","wmv","webm","m4v"]
+            .includes(ext)
+        ) {
+
+            return '<i class="fa-solid fa-file-video" style="color:#38bdf8;"></i>';
+
+        }
+
+        if (
+            ["mp3","wav","flac","m4a","aac","ogg","wma","opus"]
+            .includes(ext)
+        ) {
+
+            return '<i class="fa-solid fa-file-audio" style="color:#a855f7;"></i>';
+
+        }
+
+        if (
+            ["jpg","jpeg","png","gif","webp","bmp","svg"]
+            .includes(ext)
+        ) {
+
+            return '<i class="fa-solid fa-file-image" style="color:#f43f5e;"></i>';
+
+        }
+
+        if (["ppt","pptx"].includes(ext)) {
+
+            return '<i class="fa-solid fa-file-powerpoint" style="color:#f97316;"></i>';
+
+        }
+
+        if (["doc","docx"].includes(ext)) {
+
+            return '<i class="fa-solid fa-file-word" style="color:#60a5fa;"></i>';
+
+        }
+
+        if (["xls","xlsx","csv"].includes(ext)) {
+
+            return '<i class="fa-solid fa-file-excel" style="color:#22c55e;"></i>';
+
+        }
+
+        if (ext === "pdf") {
+
+            return '<i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i>';
+
+        }
+
+        if (["zip","rar","7z","tar","gz"].includes(ext)) {
+
+            return '<i class="fa-solid fa-file-zipper" style="color:#eab308;"></i>';
+
+        }
+
+        if (["exe","msi","bat","cmd","ps1"].includes(ext)) {
+
+            return '<i class="fa-solid fa-gears" style="color:#94a3b8;"></i>';
+
+        }
+
+        if (
+            ["txt","log","ini","json","xml","yaml","yml"]
+            .includes(ext)
+        ) {
+
+            return '<i class="fa-solid fa-file-lines" style="color:#cbd5e1;"></i>';
+
+        }
+
+        return '<i class="fa-solid fa-file" style="color:#94a3b8;"></i>';
+
+    }
+
+    function formatBytes(bytes) {
+
+        if (!bytes || bytes < 0)
+            return "";
+
+        const units = ["B","KB","MB","GB","TB"];
+
+        let i = 0;
+        let n = bytes;
+
+        while (
+            n >= 1024 &&
+            i < units.length - 1
+        ) {
+
+            n /= 1024;
+            i++;
+
+        }
+
+        return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+
+    }
+
+    /* ================= SHORTCUTS ================= */
+
+    async function loadCustomShortcuts() {
+
+        try {
+
+            const res =
+                await fetch("/api/fetch_shortcuts");
+
+            const shortcuts =
+                await res.json();
+
+            const container =
+                document.getElementById("customShortcutList");
+
+            container.innerHTML = "";
+
+            if (!shortcuts.length) {
+
+                container.innerHTML =
+                    '<div style="color:#8b929a;font-size:11px;padding:5px;">No active shortcuts configured.</div>';
+
+                return;
+
+            }
+
+            shortcuts.forEach(sc => {
+
+                const btn =
+                    document.createElement("button");
+
+                btn.className = "deck-btn";
+
+                btn.innerHTML = `
+
+                    <span style="font-size:16px;">
+                        ${sc.icon || "⚡"}
+                    </span>
+
+                    <span style="font-size:9px;">
+                        ${sc.name}
+                    </span>
+
+                `;
+
+                btn.onclick = () =>
+                    sendMedia(sc.name);
+
+                container.appendChild(btn);
+
+            });
+
+        } catch(e) {
+
+            console.error(e);
+
+        }
+
+    }
+
+    /* ================= MEDIA SOURCES ================= */
+
+    async function loadMediaSources() {
+
+        try {
+
+            const res =
+                await fetch("/api/media_sources");
+
+            const sources =
+                await res.json();
+
+            const select =
+                document.getElementById("mediaSourceSelect");
+
+            const current =
+                select.value;
+
+            select.innerHTML =
+                '<option value="">All configured folders</option>';
+
+            sources.forEach(source => {
+
+                const option =
+                    document.createElement("option");
+
+                option.value = source.id;
+                option.textContent = source.name;
+
+                select.appendChild(option);
+
+            });
+
+            if (
+                [...select.options]
+                    .some(o => o.value === current)
+            ) {
+
+                select.value = current;
+
+            }
+
+        } catch(e) {
+
+            console.error(e);
+
+        }
+
+    }
+
+    /* ================= MEDIA TOGGLE ================= */
+
+    function toggleMediaMode() {
+
+        currentMediaMode =
+            currentMediaMode === "media"
+                ? "all"
+                : "media";
+
+        const toggle =
+            document.getElementById("fileModeToggle");
+
+        const label =
+            document.getElementById("toggleLabel");
+
+        const modeLabel =
+            document.getElementById("explorerModeLabel");
+
+        if (currentMediaMode === "all") {
+
+            toggle.classList.add("all");
+
+            label.innerText = "ALL";
+
+            modeLabel.innerText = "ALL FILES";
+
+        } else {
+
+            toggle.classList.remove("all");
+
+            label.innerText = "MEDIA";
+
+            modeLabel.innerText = "MEDIA FILES";
+
+        }
+
+        navigationHistory = [];
+
+        loadMedia();
+
+    }
+
+    async function loadMedia() {
+
+        try {
+
+            const source =
+                document.getElementById(
+                    "mediaSourceSelect"
+                ).value;
+
+            const params =
+                new URLSearchParams();
+
+            params.set(
+                "mode",
+                currentMediaMode
+            );
+
+            if (source !== "") {
+                params.set("source", source);
+            }
+
+            const res =
+                await fetch(
+                    "/api/media_tree?" +
+                    params.toString()
+                );
+
+            rawMediaData =
+                await res.json();
+
+            navigationHistory = [];
+
+            renderFolder(
+                rawMediaData,
+                "File Explorer",
+                false
+            );
+
+        } catch(e) {
+
+            console.error(
+                "Media load error:",
+                e
+            );
+
+        }
+
+    }
+
+    /* ================= FILE EXPLORER ================= */
+
+    function renderFolder(
+        items,
+        folderName,
+        isSub = true
+    ) {
+
+        const grid =
+            document.getElementById(
+                "mediaGrid"
+            );
+
+        const nav =
+            document.getElementById(
+                "folderNav"
+            );
+
+        const pathSpan =
+            document.getElementById(
+                "currentFolderPath"
+            );
+
+        grid.innerHTML = "";
+
+        if (isSub) {
+
+            nav.style.display = "flex";
+
+            pathSpan.innerText =
+                folderName;
+
+        } else {
+
+            nav.style.display = "none";
+
+        }
+
+        if (
+            !items ||
+            items.length === 0
+        ) {
+
+            grid.innerHTML = `
+
+                <div style="color:#8b929a;font-size:11px;padding:6px;">
+
+                    ${
+                        currentMediaMode === "all"
+                        ? "Folder is Empty."
+                        : "No supported media files found."
+                    }
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+        items.forEach(item => {
+
+            const tile =
+                document.createElement("div");
+
+            tile.className = "tile";
+
+            /* FOLDER */
+
+            if (item.type === "folder") {
+
+                tile.innerHTML = `
+
+                    <div class="tile-icon">
+
+                        ${getFileIconHTML("", true)}
+
+                    </div>
+
+                    <div>
+                        ${item.name}
+                    </div>
+
+                `;
+
+                tile.onclick = () => {
+
+                    navigationHistory.push({
+
+                        items: items,
+                        name: folderName,
+                        isSub: isSub
+
+                    });
+
+                    renderFolder(
+                        item.children,
+                        item.name,
+                        true
+                    );
+
+                    document
+                        .querySelector(".media-container")
+                        .scrollTop = 0;
+
+                };
+
+            /* FILE */
+
+            } else {
+
+                tile.innerHTML = `
+
+                    <div class="tile-icon">
+
+                        ${getFileIconHTML(item.name)}
+
+                    </div>
+
+                    <div title="${item.name}">
+
+                        ${item.name}
+
+                    </div>
+
+                    <div style="
+                        font-size:8px;
+                        color:#64748b;
+                        margin-top:2px;
+                    ">
+
+                        ${formatBytes(item.size)}
+
+                    </div>
+
+                `;
+
+                tile.onclick = () => {
+
+                    openFileActionModal(
+                        item.path,
+                        item.name
+                    );
+
+                };
+
+            }
+
+            grid.appendChild(tile);
+
+        });
+
+    }
+
+    function navigateBack() {
+
+        if (
+            navigationHistory.length > 0
+        ) {
+
+            const prev =
+                navigationHistory.pop();
+
+            renderFolder(
+                prev.items,
+                prev.name,
+                prev.isSub
+            );
+
+            document
+                .querySelector(".media-container")
+                .scrollTop = 0;
+
+        }
+
+    }
+
+    /* ================= FILE ACTION POPUP ================= */
+
+    function openFileActionModal(
+        path,
+        name
+    ) {
+
+        selectedFilePath = path;
+        selectedFileName = name;
+
+        document.getElementById(
+            "selectedFileName"
+        ).innerHTML = `
+
+            <i class="fa-solid fa-file"></i>
+
+            <br><br>
+
+            ${name}
+
+        `;
+
+        document.getElementById(
+            "fileActionModal"
+        ).style.display = "flex";
+
+    }
+
+    function closeFileActionModal() {
+
+        document.getElementById(
+            "fileActionModal"
+        ).style.display = "none";
+
+    }
+
+    function openSelectedFile() {
+
+        if (!selectedFilePath)
+            return;
+
+        openRemoteFile(
+            selectedFilePath
+        );
+
+        closeFileActionModal();
+
+    }
+
+    function downloadSelectedFile() {
+
+        if (!selectedFilePath)
+            return;
+
+        downloadRemoteFile(
+            selectedFilePath
+        );
+
+        closeFileActionModal();
+
+    }
+
+    function openRemoteFile(path) {
+
+        fetch("/api/open_file", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type":
+                    "application/json"
+            },
+
+            body: JSON.stringify({
+                path: path
+            })
+
+        })
+
+        .then(r => r.json())
+
+        .then(data => {
+
+            if (
+                data.status !== "success"
+            ) {
+
+                alert(
+                    data.message ||
+                    "Could not open file."
+                );
+
+            }
+
+        })
+
+        .catch(() => {
+
+            alert(
+                "Could not open file."
+            );
+
+        });
+
+    }
+
+    function downloadRemoteFile(path) {
+
+        const url =
+            "/api/download_file?path=" +
+            encodeURIComponent(path);
+
+        const a =
+            document.createElement("a");
+
+        a.href = url;
+        a.download = "";
+
+        document.body.appendChild(a);
+
+        a.click();
+
+        a.remove();
+
+    }
+
+    /* ================= APPLICATIONS ================= */
+
+    let allApplications = [];
+
+    async function loadApps() {
+
+        try {
+
+            const res =
+                await fetch(
+                    "/api/fetch_apps"
+                );
+
+            const apps =
+                await res.json();
+
+            allApplications = apps;
+
+            renderTopApps(apps);
+            renderAllApps(apps);
+
+        } catch(e) {
+
+            console.error(
+                "App loading error:",
+                e
+            );
+
+        }
+
+    }
+
+    function getAppIcon(app) {
+
+        if (app.is_link) {
+
+            return `
+
+                <i class="fa-solid fa-globe"
+                   style="color:#38bdf8;">
+                </i>
+
+            `;
+
+        }
+
+        return `
+
+            <i class="fa-solid fa-laptop"
+               style="color:#4ade80;">
+            </i>
+
+        `;
+
+    }
+
+    function launchApp(app) {
+
+        fetch(
+            "/api/launch_app",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    path: app.path,
+
+                    is_link:
+                        app.is_link
+
+                })
+
+            }
+        );
+
+    }
+
+    /* TOP 10 */
+
+    function renderTopApps(apps) {
+
+        const container =
+            document.getElementById(
+                "appTopList"
+            );
+
+        container.innerHTML = "";
+
+        const top10 =
+            apps.slice(0, 10);
+
+        if (!top10.length) {
+
+            container.innerHTML = `
+
+                <div style="
+                    color:#8b929a;
+                    font-size:10px;
+                    padding:5px;
+                ">
+
+                    No applications configured.
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+        top10.forEach(app => {
+
+            const btn =
+                document.createElement(
+                    "div"
+                );
+
+            btn.className =
+                "app-icon-btn";
+
+            btn.innerHTML = `
+
+                ${getAppIcon(app)}
+
+                <div class="app-icon-name">
+
+                    ${app.name}
+
+                </div>
+
+            `;
+
+            btn.onclick = () =>
+                launchApp(app);
+
+            container.appendChild(btn);
+
+        });
+
+    }
+
+    /* ALL APPS */
+
+    function renderAllApps(apps) {
+
+        const container =
+            document.getElementById(
+                "allAppsGrid"
+            );
+
+        container.innerHTML = "";
+
+        apps.forEach(app => {
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+            card.className =
+                "all-app-card";
+
+            card.innerHTML = `
+
+                ${getAppIcon(app)}
+
+                <span>
+                    ${app.name}
+                </span>
+
+            `;
+
+            card.onclick = () =>
+                launchApp(app);
+
+            container.appendChild(card);
+
+        });
+
+    }
+
+    function openAppsModal() {
+
+        document.getElementById(
+            "appsModal"
+        ).style.display = "flex";
+
+    }
+
+    function closeAppsModal() {
+
+        document.getElementById(
+            "appsModal"
+        ).style.display = "none";
+
+    }
+
+    /* ================= SOUNDBOARD ================= */
+
+    async function loadSoundboard() {
+
+        try {
+
+            const res =
+                await fetch(
+                    "/api/soundboard_tree"
+                );
+
+            const data =
+                await res.json();
+
+            const container =
+                document.getElementById(
+                    "soundGrid"
+                );
+
+            container.innerHTML = "";
+
+            if (data.error) {
+
+                container.innerHTML = `
+
+                    <div style="
+                        color:#f87171;
+                        font-size:10px;
+                    ">
+
+                        ${data.error}
+
+                    </div>
+
+                `;
+
+                return;
+
+            }
+
+            const audioFiles = [];
+
+            function collect(
+                items,
+                prefix = ""
+            ) {
+
+                (items || [])
+                    .forEach(item => {
+
+                        if (
+                            item.type ===
+                            "folder"
+                        ) {
+
+                            collect(
+                                item.children,
+                                prefix +
+                                item.name +
+                                "/"
+                            );
+
+                        } else {
+
+                            audioFiles.push({
+
+                                name:
+                                    prefix +
+                                    item.name,
+
+                                path:
+                                    item.path
+
+                            });
+
+                        }
+
+                    });
+
+            }
+
+            collect(data.items);
+
+            if (!audioFiles.length) {
+
+                container.innerHTML = `
+
+                    <div style="
+                        color:#8b929a;
+                        font-size:10px;
+                    ">
+
+                        No audio files found.
+
+                    </div>
+
+                `;
+
+                return;
+
+            }
+
+            audioFiles.forEach(file => {
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+                card.className =
+                    "sound-card";
+
+                const name =
+                    document.createElement(
+                        "div"
+                    );
+
+                name.className =
+                    "sound-name";
+
+                name.innerText =
+                    file.name;
+
+                const btn =
+                    document.createElement(
+                        "button"
+                    );
+
+                btn.className =
+                    "sound-play-btn";
+
+                btn.innerHTML = `
+
+                    <i class="fa-solid fa-play"></i>
+                    PLAY ON PC
+
+                `;
+
+                btn.onclick = () =>
+                    playPcSound(
+                        file.path,
+                        file.name
+                    );
+
+                card.appendChild(name);
+                card.appendChild(btn);
+
+                container.appendChild(card);
+
+            });
+
+        } catch(e) {
+
+            console.error(
+                "Soundboard load error:",
+                e
+            );
+
+        }
+
+    }
+
+    function playPcSound(
+        path,
+        displayName
+    ) {
+
+        socket.emit(
+            "soundboard_play",
+            {
+                path: path
+            }
+        );
+
+        document.getElementById(
+            "playerCurrent"
+        ).innerText =
+            "Playing on PC: " +
+            displayName;
+
+    }
+
+    function controlSoundPlayer(
+        action
+    ) {
+
+        socket.emit(
+            "soundboard_control",
+            {
+                action: action
+            }
+        );
+
+    }
+
+    socket.on(
+        "soundboard_status",
+        data => {
+
+            const label =
+                document.getElementById(
+                    "playerCurrent"
+                );
+
+            if (!label)
+                return;
+
+            if (
+                data.status ===
+                "playing"
+            ) {
+
+                label.innerText =
+                    "Playing on PC: " +
+                    (data.path || "")
+                    .split(/[\/\\]/)
+                    .pop();
+
+            } else if (
+                data.status ===
+                "error"
+            ) {
+
+                label.innerText =
+                    "Player error: " +
+                    (
+                        data.message ||
+                        "Unknown error"
+                    );
+
+            } else {
+
+                label.innerText =
+                    data.message ||
+                    "Player ready";
+
+            }
+
+        }
+    );
+
+    function openSoundboardModal() {
+
+        document.getElementById(
+            "soundboardModal"
+        ).style.display = "flex";
+
+    }
+
+    function closeSoundboardModal() {
+
+        document.getElementById(
+            "soundboardModal"
+        ).style.display = "none";
+
+    }
+
+    /* ================= I/O MODAL ================= */
+
+    function openIOModal() {
+
+        document.getElementById(
+            "ioModal"
+        ).style.display = "flex";
+
+    }
+
+    function closeIOModal() {
+
+        document.getElementById(
+            "ioModal"
+        ).style.display = "none";
+
+    }
+
+    function switchTab(
+        tabName,
+        btnElem
+    ) {
+
+        document
+            .querySelectorAll(
+                ".tab-pane"
+            )
+            .forEach(
+                p =>
+                    p.classList.remove(
+                        "active"
+                    )
+            );
+
+        document
+            .querySelectorAll(
+                ".tab-btn"
+            )
+            .forEach(
+                b =>
+                    b.classList.remove(
+                        "active"
+                    )
+            );
+
+        document
+            .getElementById(
+                "pane-" + tabName
+            )
+            .classList.add(
+                "active"
+            );
+
+        btnElem.classList.add(
+            "active"
+        );
+
+    }
+
+    /* ================= KEYBOARD ================= */
+
+    const keyboardKeys = [
+
+        "esc",
+
+        "f1","f2","f3","f4",
+        "f5","f6","f7","f8",
+        "f9","f10","f11","f12",
+
+        "`",
+
+        "1","2","3","4","5",
+        "6","7","8","9","0",
+
+        "-","=",
+
+        "backspace",
+
+        "tab",
+
+        "q","w","e","r","t",
+        "y","u","i","o","p",
+
+        "[","]","\\",
+
+        "capslock",
+
+        "a","s","d","f","g",
+        "h","j","k","l",
+
+        ";","'",
+
+        "enter",
+
+        "shift",
+
+        "z","x","c","v","b",
+        "n","m",
+
+        ",",".","/",
+
+        "up",
+
+        "ctrl",
+        "win",
+        "alt",
+        "space",
+        "alt",
+
+        "left",
+        "down",
+        "right"
+
+    ];
+
+    const vkContainer =
+        document.getElementById(
+            "virtualKeyboardGrid"
+        );
+
+    keyboardKeys.forEach(k => {
+
+        const kbBtn =
+            document.createElement(
+                "button"
+            );
+
+        kbBtn.className =
+            "vk-btn";
+
+        kbBtn.innerText =
+            k.toUpperCase();
+
+        kbBtn.onclick = () => {
+
+            socket.emit(
+                "keyboard_action",
+                {
+                    type: "press",
+                    payload: k
+                }
+            );
+
+        };
+
+        vkContainer.appendChild(
+            kbBtn
+        );
+
+    });
+
+    function sendTypedText() {
+
+        const input =
+            document.getElementById(
+                "typeInput"
+            );
+
+        const val =
+            input.value;
+
+        if (!val)
+            return;
+
+        socket.emit(
+            "keyboard_action",
+            {
+                type: "write",
+                payload: val
+            }
+        );
+
+        input.value = "";
+
+    }
+
+    /* ================= TRACKPAD ================= */
+
+    const tpBox =
+        document.getElementById(
+            "trackpadBox"
+        );
+
+    let startX = 0;
+    let startY = 0;
+
+    tpBox.addEventListener(
+        "pointerdown",
+        e => {
+
+            startX = e.clientX;
+            startY = e.clientY;
+
+            tpBox.setPointerCapture(
+                e.pointerId
+            );
+
+        }
+    );
+
+    tpBox.addEventListener(
+        "pointermove",
+        e => {
+
+            if (e.buttons === 0)
+                return;
+
+            const dx =
+                (e.clientX - startX) *
+                1.5;
+
+            const dy =
+                (e.clientY - startY) *
+                1.5;
+
+            startX = e.clientX;
+            startY = e.clientY;
+
+            socket.emit(
+                "mouse_action",
+                {
+                    action: "move",
+                    dx: dx,
+                    dy: dy
+                }
+            );
+
+        }
+    );
+
+    function sendMouseClick(
+        actionType
+    ) {
+
+        socket.emit(
+            "mouse_action",
+            {
+                action:
+                    actionType
+            }
+        );
+
+    }
+
+    /* ================= CLOSE MODALS ON BACKDROP ================= */
+
+    document
+        .querySelectorAll(
+            ".modal-overlay"
+        )
+        .forEach(modal => {
+
+            modal.addEventListener(
+                "click",
+                e => {
+
+                    if (
+                        e.target ===
+                        modal
+                    ) {
+
+                        modal.style.display =
+                            "none";
+
+                    }
+
+                }
+            );
+
+        });
+
+    /* ================= INITIAL LOAD ================= */
+
+    loadCustomShortcuts();
+    loadMediaSources();
+    loadMedia();
+    loadSoundboard();
+    loadApps();
+
+</script>
+
+</body>
+</html>

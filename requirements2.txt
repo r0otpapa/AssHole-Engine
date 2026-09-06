@@ -1,0 +1,7 @@
+Flask
+Flask-SocketIO
+PyAutoGUI
+pygame
+qrcode
+screen-brightness-control
+Pillow
