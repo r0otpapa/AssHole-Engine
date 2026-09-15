@@ -45,7 +45,7 @@ So I made this.
 
 - WebUi Clock, Todo List
 - Auto Startup, System Tray
-- 
+
 Basically:
 
 > **If your PC can do it, I probably added a button for it.** 💀
