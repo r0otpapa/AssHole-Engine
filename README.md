@@ -29,10 +29,13 @@ So I made this.
 - 🖱️ **Mouse Control** — Move, left click, right click & more
 - ⌨️ **Keyboard Control** — Send keyboard keys and shortcuts
 - 🎵 **Media Control** — Play, pause, stop, next, previous & volume [Better control in VLC (Audio track change, Subtitle On Off)]
-- 🔊 **Soundboard** — Inbuilt soundboard Play sounds directly on your PC, using webui
+- 🔊 **Soundboard** — Inbuilt soundboard Play sounds directly on your PC, using webui, Search box and File Explorer Mode
 - 🚀 **App Launcher** — Launch your favorite PC applications
+- 🚀 **Workspace** - Multiple Apps and Links open in one Click
+- 🚀 **HID** - Run Rubber Duckey Script as a Micro
+- 🚀 **Capture** - Screen Camera and Mic Capture 
 - 🔗 **Custom Shortcuts** — Create your own shortcuts
-- 📂 **File & Media Browser** — Browse, open and download files
+- 📂 **File & Media Browser** — Browse, open and download/Upload files
 - 📸 **Screenshot & Screen record** — Capture your PC screen remotely
 - ☀️ **Brightness Control** — Control screen brightness
 - 🔊 **System Controls** — Control supported PC functions
@@ -40,6 +43,9 @@ So I made this.
 - 📡 **LAN Remote** — Control your PC over local Wi-Fi
 - ⚙️ **Custom Configuration** — Configure folders, apps, sounds & shortcuts
 
+- WebUi Clock, Todo List
+- Auto Startup, System Tray
+- 
 Basically:
 
 > **If your PC can do it, I probably added a button for it.** 💀
