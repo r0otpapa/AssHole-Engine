@@ -8,7 +8,45 @@ import threading
 import subprocess
 import webbrowser
 import mimetypes
+import urllib.parse
+try:
+    from zoneinfo import available_timezones
+except ImportError:
+    def available_timezones():
+        return set()
 import pyautogui
+
+try:
+    import hid_manager
+    HID_MANAGER_AVAILABLE = True
+except ImportError:
+    hid_manager = None
+    HID_MANAGER_AVAILABLE = False
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    psutil = None
+    PSUTIL_AVAILABLE = False
+try:
+    import pystray
+    PYSTRAY_AVAILABLE = True
+except ImportError:
+    pystray = None
+    PYSTRAY_AVAILABLE = False
+try:
+    import pynvml
+    pynvml.nvmlInit()
+    PYNVML_AVAILABLE = True
+except Exception:
+    pynvml = None
+    PYNVML_AVAILABLE = False
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    cv2 = None
+    CV2_AVAILABLE = False
 import qrcode
 import screen_brightness_control as sbc
 
@@ -20,8 +58,9 @@ except ImportError:
     PYGAME_AVAILABLE = False
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
-from PIL import ImageTk, Image, ImageGrab
+from PIL import ImageTk, Image, ImageDraw, ImageGrab
 from flask import Flask, jsonify, request, send_from_directory, send_file
+from werkzeug.utils import secure_filename
 from flask_socketio import SocketIO
 
 # Root path resolver for PyInstaller bundle directory
@@ -43,6 +82,10 @@ DEFAULT_CONFIG = {
     "screenshot_path": r"C:\Users\PanicButton\Pictures\Screenshots",
     "soundboard_path": r"C:\Users\Public\Music",
     "soundboard_volume": 80,
+    "webui_timezone": "",
+    "upload_folder": os.path.join(os.path.expanduser("~"), "Downloads"),
+    "auto_start": False,
+    "minimize_to_tray_on_close": True,
     "media_folders": [
         {"path": r"C:\Users\Public\Videos", "enabled": True}
     ],
@@ -52,12 +95,29 @@ DEFAULT_CONFIG = {
         {"name": "Calculator", "path": "calc.exe", "is_link": False, "enabled": True},
         {"name": "Google", "path": "https://www.google.com", "is_link": True, "enabled": True}
     ],
+    "workspaces": [],
     "custom_shortcuts": [
         {"name": "Win + Tab", "keys": ["win", "tab"], "category": "Windows", "icon": "🔀", "enabled": True},
         {"name": "Sound output devices", "keys": ["win", "ctrl", "v"], "category": "Windows", "icon": "🔊", "enabled": True},
         {"name": "Taskbar apps", "keys": ["win", "t"], "category": "Windows", "icon": "🖥️", "enabled": True},
         {"name": "Enter", "keys": ["enter"], "category": "Windows", "icon": "↩️", "enabled": True}
     ],
+    "hid": {
+        "enabled": False,
+        "script_path": "hid_scripts"
+    },
+    "capture": {
+        "enabled": False,
+        "camera_enabled": False,
+        "microphone_enabled": False,
+        "screen_enabled": False,
+        "camera_device": 0,
+        "microphone_device": "default",
+        "screen_display": 0,
+        "screen_device": 0,
+        "output_path": "captures",
+        "visible_recording_indicator": True
+    },
     "built_in_controls": [
         {"id": "play_pause", "name": "Play/Pause", "category": "Media", "enabled": True},
         {"id": "vol_up", "name": "Volume Up", "category": "Media", "enabled": True},
@@ -104,6 +164,48 @@ def save_config():
 
 CONFIG = load_config()
 
+# ---------------- MULTI-DEVICE ACTIVITY LOG ----------------
+# Records which connected device (phone/browser) triggered which action,
+# so that if several devices control the PC at once, there is a file-based
+# trail of "who did what, when".
+
+ACTIVITY_LOG_DIR = "logs"
+ACTIVITY_LOG_FILE = os.path.join(ACTIVITY_LOG_DIR, "activity_log.jsonl")
+_activity_log_lock = threading.Lock()
+
+
+def _client_device_label():
+    """Best-effort device identifier (IP + short platform hint) for the log."""
+    try:
+        ip = request.remote_addr or "unknown"
+        ua = request.headers.get("User-Agent", "")
+        platform_hint = "Device"
+        for token in ("iPhone", "Android", "iPad", "Windows", "Macintosh", "Linux"):
+            if token in ua:
+                platform_hint = token
+                break
+        return f"{ip} ({platform_hint})"
+    except Exception:
+        return "unknown"
+
+
+def log_activity(action, meta=None, device=None):
+    """Append one entry to the multi-device activity log file (JSON Lines)."""
+    try:
+        os.makedirs(ACTIVITY_LOG_DIR, exist_ok=True)
+        entry = {
+            "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "device": device or _client_device_label(),
+            "action": action,
+            "meta": meta or {}
+        }
+        with _activity_log_lock:
+            with open(ACTIVITY_LOG_FILE, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print("Activity Log Error:", e)
+
+
 def get_local_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -113,6 +215,99 @@ def get_local_ip():
         return ip
     except Exception:
         return "127.0.0.1"
+
+
+# ---------------- AUTO-START (Windows Registry Run key) ----------------
+
+AUTO_START_APP_NAME = "ASSHOLE_ENGINE"
+
+
+def _autostart_exe_path():
+    if getattr(sys, "frozen", False):
+        return sys.executable
+    return os.path.abspath(sys.argv[0])
+
+
+def is_auto_start_enabled():
+    if os.name != "nt":
+        return False
+    try:
+        import winreg
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_READ) as key:
+            winreg.QueryValueEx(key, AUTO_START_APP_NAME)
+            return True
+    except Exception:
+        return False
+
+
+def set_auto_start(enabled):
+    """Add/remove the app from the Windows Startup (Run key). Returns True on success."""
+    if os.name != "nt":
+        return False
+    try:
+        import winreg
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        exe_path = _autostart_exe_path()
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
+            if enabled:
+                winreg.SetValueEx(key, AUTO_START_APP_NAME, 0, winreg.REG_SZ, f'"{exe_path}"')
+            else:
+                try:
+                    winreg.DeleteValue(key, AUTO_START_APP_NAME)
+                except FileNotFoundError:
+                    pass
+        return True
+    except Exception as e:
+        print("Auto-start registry error:", e)
+        return False
+
+
+# ---------------- SYSTEM TRAY ----------------
+
+_tray_icon_ref = {"icon": None}
+
+
+def _make_tray_image():
+    img = Image.new("RGB", (64, 64), "#ff4757")
+    draw = ImageDraw.Draw(img)
+    draw.ellipse((14, 14, 50, 50), fill="#ffffff")
+    draw.ellipse((24, 24, 40, 40), fill="#ff4757")
+    return img
+
+
+def setup_system_tray(root):
+    """Create the tray icon (runs its own loop in a daemon thread)."""
+    if not PYSTRAY_AVAILABLE:
+        return None
+
+    def restore_window():
+        root.deiconify()
+        root.lift()
+        root.focus_force()
+
+    def on_open(icon, item):
+        root.after(0, restore_window)
+
+    def on_exit(icon, item):
+        icon.stop()
+        root.after(0, root.destroy)
+
+    menu = pystray.Menu(
+        pystray.MenuItem("Open ASSHOLE ENGINE", on_open, default=True),
+        pystray.MenuItem("Exit", on_exit)
+    )
+    icon = pystray.Icon("asshole_engine", _make_tray_image(), "ASSHOLE ENGINE", menu)
+    threading.Thread(target=icon.run, daemon=True).start()
+    return icon
+
+
+def minimize_to_tray(root):
+    """Hide the window and (re)start the tray icon if needed."""
+    root.withdraw()
+    if _tray_icon_ref["icon"] is None:
+        _tray_icon_ref["icon"] = setup_system_tray(root)
+
 
 MEDIA_EXTS = (
     '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.webm', '.m4v',
@@ -506,6 +701,7 @@ def download_file():
         return jsonify({"status": "error", "message": "File not found."}), 404
 
     try:
+        log_activity("download_file", {"file": os.path.basename(requested_path)})
         return send_file(
             os.path.realpath(requested_path),
             as_attachment=True,
@@ -533,6 +729,7 @@ def open_file_on_pc():
             subprocess.Popen(["open", requested_path])
         else:
             subprocess.Popen(["xdg-open", requested_path])
+        log_activity("open_file", {"file": os.path.basename(requested_path)})
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -543,6 +740,16 @@ def soundboard_play_http():
     data = request.get_json(silent=True) or {}
     path = str(data.get("path", "")).strip()
     ok, message = SOUND_PLAYER.play(path)
+    if ok:
+        log_activity("soundboard_play", {"file": os.path.basename(path)})
+    try:
+        socketio.emit("soundboard_status", {
+            "status": "playing" if ok else "error",
+            "message": message,
+            "path": SOUND_PLAYER.current_path if ok else path
+        })
+    except Exception:
+        pass
     return jsonify({"status": "success" if ok else "error", "message": message}), (200 if ok else 400)
 
 
@@ -556,7 +763,411 @@ def soundboard_control_http():
         ok = SOUND_PLAYER.stop()
     else:
         return jsonify({"status": "error", "message": "Unknown player action."}), 400
+    if ok:
+        log_activity("soundboard_" + action)
+    try:
+        socketio.emit("soundboard_status", {
+            "status": "success" if ok else "error",
+            "path": SOUND_PLAYER.current_path
+        })
+    except Exception:
+        pass
     return jsonify({"status": "success" if ok else "error"}), (200 if ok else 400)
+
+
+
+# ---------------- WORKSPACE WEB API ----------------
+# Mirrors the desktop "Workspace Manager" (create/delete/pin/launch) so the
+# Web UI can manage and launch workspaces too. The desktop Tkinter UI itself
+# is untouched.
+
+def _find_workspace_by_identifier(identifier):
+    """Look up a workspace by name first, falling back to numeric index."""
+    workspaces = CONFIG.get("workspaces", [])
+    if identifier is None:
+        return None, None
+
+    for idx, ws in enumerate(workspaces):
+        if ws.get("name", "") == identifier:
+            return idx, ws
+
+    identifier_str = str(identifier).strip()
+    if identifier_str.isdigit():
+        idx = int(identifier_str)
+        if 0 <= idx < len(workspaces):
+            return idx, workspaces[idx]
+
+    return None, None
+
+
+@app.route('/api/webui_settings', methods=['GET'])
+def get_webui_settings():
+    return jsonify({
+        "timezone": CONFIG.get("webui_timezone", "")
+    })
+
+
+_net_io_snapshot = {"time": None, "sent": 0, "recv": 0}
+
+
+def _get_net_speed_kbps():
+    """Best-effort upload/download speed in KB/s, based on a delta between calls."""
+    global _net_io_snapshot
+    if not PSUTIL_AVAILABLE:
+        return None, None
+    try:
+        counters = psutil.net_io_counters()
+        now = time.time()
+
+        if _net_io_snapshot["time"] is None:
+            _net_io_snapshot = {"time": now, "sent": counters.bytes_sent, "recv": counters.bytes_recv}
+            return 0.0, 0.0
+
+        elapsed = max(now - _net_io_snapshot["time"], 0.001)
+        up_kbps = max((counters.bytes_sent - _net_io_snapshot["sent"]) / elapsed / 1024, 0)
+        down_kbps = max((counters.bytes_recv - _net_io_snapshot["recv"]) / elapsed / 1024, 0)
+
+        _net_io_snapshot = {"time": now, "sent": counters.bytes_sent, "recv": counters.bytes_recv}
+        return round(up_kbps, 1), round(down_kbps, 1)
+    except Exception:
+        return None, None
+
+
+def _get_gpu_percent():
+    if not PYNVML_AVAILABLE:
+        return None
+    try:
+        handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+        return round(util.gpu)
+    except Exception:
+        return None
+
+
+def _get_cpu_temp():
+    if not PSUTIL_AVAILABLE or not hasattr(psutil, "sensors_temperatures"):
+        return None
+    try:
+        temps = psutil.sensors_temperatures()
+        if not temps:
+            return None
+        for entries in temps.values():
+            if entries:
+                return round(entries[0].current)
+    except Exception:
+        pass
+    return None
+
+
+@app.route('/api/system_stats', methods=['GET'])
+def get_system_stats():
+    """Battery / CPU / GPU / RAM / Temp / Net mini-stats for the WebUI clock popup."""
+    cpu_percent = None
+    ram_percent = None
+    battery_percent = None
+    battery_plugged = None
+
+    if PSUTIL_AVAILABLE:
+        try:
+            cpu_percent = round(psutil.cpu_percent(interval=0.1))
+        except Exception:
+            cpu_percent = None
+        try:
+            ram_percent = round(psutil.virtual_memory().percent)
+        except Exception:
+            ram_percent = None
+        try:
+            battery = psutil.sensors_battery()
+            if battery is not None:
+                battery_percent = round(battery.percent)
+                battery_plugged = bool(battery.power_plugged)
+        except Exception:
+            battery_percent = None
+
+    gpu_percent = _get_gpu_percent()
+    cpu_temp = _get_cpu_temp()
+    net_up_kbps, net_down_kbps = _get_net_speed_kbps()
+
+    return jsonify({
+        "cpu_percent": cpu_percent,
+        "ram_percent": ram_percent,
+        "battery_percent": battery_percent,
+        "battery_plugged": battery_plugged,
+        "gpu_percent": gpu_percent,
+        "cpu_temp_c": cpu_temp,
+        "net_up_kbps": net_up_kbps,
+        "net_down_kbps": net_down_kbps,
+        "psutil_available": PSUTIL_AVAILABLE,
+        "gpu_available": PYNVML_AVAILABLE
+    })
+
+
+@app.route('/api/upload_file', methods=['POST'])
+def upload_file_from_mobile():
+    """Receive a file from a phone/browser and save it into whichever
+    folder is selected in the File Explorer (falls back to the configured
+    upload folder / Downloads if none is selected)."""
+    if 'file' not in request.files:
+        return jsonify({"status": "error", "message": "No file provided."}), 400
+
+    uploaded = request.files['file']
+    if not uploaded or not uploaded.filename:
+        return jsonify({"status": "error", "message": "No file selected."}), 400
+
+    upload_folder = CONFIG.get("upload_folder") or os.path.join(os.path.expanduser("~"), "Downloads")
+
+    source_index = request.form.get("source", "").strip()
+    if source_index != "":
+        try:
+            idx = int(source_index)
+            media_folders = CONFIG.get("media_folders", [])
+            if 0 <= idx < len(media_folders):
+                candidate = media_folders[idx].get("path", "")
+                if candidate and os.path.isdir(candidate):
+                    upload_folder = candidate
+        except (TypeError, ValueError):
+            pass
+
+    try:
+        os.makedirs(upload_folder, exist_ok=True)
+
+        safe_name = secure_filename(uploaded.filename) or "upload"
+        dest_path = os.path.join(upload_folder, safe_name)
+
+        # Avoid overwriting an existing file with the same name.
+        base, ext = os.path.splitext(safe_name)
+        counter = 1
+        while os.path.exists(dest_path):
+            dest_path = os.path.join(upload_folder, f"{base}_{counter}{ext}")
+            counter += 1
+
+        uploaded.save(dest_path)
+        log_activity("upload_file", {"file": os.path.basename(dest_path), "folder": upload_folder})
+
+        return jsonify({
+            "status": "success",
+            "saved_as": os.path.basename(dest_path),
+            "folder": upload_folder
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/play_alert', methods=['POST'])
+def play_alert_sound():
+    """Play a short alert sound on the PC's speakers (e.g. timer finished)."""
+    try:
+        if os.name == "nt":
+            import winsound
+            winsound.Beep(880, 200)
+            winsound.Beep(1046, 250)
+        else:
+            print("\a", end="", flush=True)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/capture_photo', methods=['POST'])
+def capture_photo():
+    """Take a single still photo from the configured camera device
+    (independent of the video/audio recording pipeline in hid_manager)."""
+    if not CV2_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "Camera support not installed. Run: pip install opencv-python"
+        }), 503
+
+    cap_cfg = CONFIG.get("capture", {})
+    device_index = cap_cfg.get("camera_device", 0)
+    output_path = cap_cfg.get("output_path") or CONFIG.get("screenshot_path") or os.getcwd()
+
+    camera = None
+    try:
+        os.makedirs(output_path, exist_ok=True)
+
+        camera = cv2.VideoCapture(device_index)
+        if not camera.isOpened():
+            return jsonify({
+                "status": "error",
+                "message": f"Could not open camera device {device_index}."
+            }), 500
+
+        # Warm-up reads — the first frame or two from many webcams is dark/blurry.
+        for _ in range(3):
+            camera.read()
+
+        ok, frame = camera.read()
+        if not ok or frame is None:
+            return jsonify({"status": "error", "message": "Could not read a frame from the camera."}), 500
+
+        filename = f"photo_{time.strftime('%Y%m%d_%H%M%S')}.jpg"
+        filepath = os.path.join(output_path, filename)
+        cv2.imwrite(filepath, frame)
+
+        log_activity("capture_photo", {"file": filename})
+        return jsonify({"status": "success", "file": filename, "folder": output_path})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if camera is not None:
+            camera.release()
+
+
+@app.route('/api/activity_log', methods=['GET'])
+def get_activity_log():
+    """Return the most recent multi-device activity log entries."""
+    limit = request.args.get("limit", 50, type=int)
+    limit = max(1, min(limit, 500))
+
+    entries = []
+    try:
+        if os.path.isfile(ACTIVITY_LOG_FILE):
+            with open(ACTIVITY_LOG_FILE, "r", encoding="utf-8") as f:
+                lines = f.readlines()[-limit:]
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entries.append(json.loads(line))
+                except Exception:
+                    continue
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    entries.reverse()
+    return jsonify(entries)
+
+
+@app.route('/api/fetch_workspaces', methods=['GET'])
+def fetch_workspaces():
+    workspaces = CONFIG.get("workspaces", [])
+    result = []
+    for idx, ws in enumerate(workspaces):
+        result.append({
+            "index": idx,
+            "name": ws.get("name", "Workspace"),
+            "enabled": ws.get("enabled", True),
+            "items": ws.get("items", [])
+        })
+    return jsonify(result)
+
+
+@app.route('/api/workspace/toggle', methods=['POST'])
+def toggle_workspace_pin():
+    """Pin/unpin (enable/disable) a workspace from the Web UI."""
+    data = request.get_json(silent=True) or {}
+    identifier = data.get("name", data.get("index"))
+    idx, ws = _find_workspace_by_identifier(identifier)
+    if ws is None:
+        return jsonify({"status": "error", "message": "Workspace not found."}), 404
+
+    ws["enabled"] = not ws.get("enabled", True)
+    save_config()
+    return jsonify({"status": "success", "enabled": ws["enabled"]})
+
+
+@app.route('/api/workspace/delete', methods=['POST'])
+def delete_workspace_web():
+    """Delete a workspace from the Web UI."""
+    data = request.get_json(silent=True) or {}
+    identifier = data.get("name", data.get("index"))
+    idx, ws = _find_workspace_by_identifier(identifier)
+    if ws is None:
+        return jsonify({"status": "error", "message": "Workspace not found."}), 404
+
+    CONFIG["workspaces"].pop(idx)
+    save_config()
+    return jsonify({"status": "success"})
+
+
+@app.route('/api/launch_workspace', methods=['POST'])
+def launch_workspace_web():
+    """Open every enabled item (.exe / link) inside a workspace."""
+    data = request.get_json(silent=True) or {}
+    identifier = data.get("name", data.get("index"))
+    idx, ws = _find_workspace_by_identifier(identifier)
+    if ws is None:
+        return jsonify({"status": "error", "message": "Workspace not found."}), 404
+
+    if not ws.get("enabled", True):
+        return jsonify({"status": "error", "message": "This workspace is unpinned/disabled."}), 400
+
+    launched = 0
+    errors = []
+    for item in ws.get("items", []):
+        if not item.get("enabled", True):
+            continue
+        path = str(item.get("path", "")).strip()
+        if not path:
+            continue
+        try:
+            if item.get("is_link", False):
+                webbrowser.open(path)
+            elif os.name == "nt":
+                os.startfile(path)
+            else:
+                subprocess.Popen([path])
+            launched += 1
+        except Exception as exc:
+            errors.append(f"{item.get('name', path)}: {exc}")
+
+    if launched == 0 and errors:
+        return jsonify({"status": "error", "message": "; ".join(errors[:5])}), 500
+
+    log_activity("launch_workspace", {"workspace": ws.get("name"), "launched": launched})
+    return jsonify({"status": "success", "launched": launched, "errors": errors})
+
+
+@app.route('/api/workspace/item/toggle', methods=['POST'])
+def toggle_workspace_item_web():
+    """Pin/unpin (enable/disable) a single link/app inside a workspace."""
+    data = request.get_json(silent=True) or {}
+    identifier = data.get("workspace")
+    item_index = data.get("item_index")
+
+    idx, ws = _find_workspace_by_identifier(identifier)
+    if ws is None:
+        return jsonify({"status": "error", "message": "Workspace not found."}), 404
+
+    items = ws.get("items", [])
+    try:
+        item_index = int(item_index)
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Invalid item."}), 400
+
+    if not (0 <= item_index < len(items)):
+        return jsonify({"status": "error", "message": "Item not found."}), 404
+
+    items[item_index]["enabled"] = not items[item_index].get("enabled", True)
+    save_config()
+    return jsonify({"status": "success", "enabled": items[item_index]["enabled"]})
+
+
+@app.route('/api/workspace/item/delete', methods=['POST'])
+def delete_workspace_item_web():
+    """Remove a single link/app from inside a workspace."""
+    data = request.get_json(silent=True) or {}
+    identifier = data.get("workspace")
+    item_index = data.get("item_index")
+
+    idx, ws = _find_workspace_by_identifier(identifier)
+    if ws is None:
+        return jsonify({"status": "error", "message": "Workspace not found."}), 404
+
+    items = ws.get("items", [])
+    try:
+        item_index = int(item_index)
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Invalid item."}), 400
+
+    if not (0 <= item_index < len(items)):
+        return jsonify({"status": "error", "message": "Item not found."}), 404
+
+    items.pop(item_index)
+    save_config()
+    return jsonify({"status": "success"})
 
 
 @app.route('/api/fetch_apps', methods=['GET'])
@@ -586,14 +1197,192 @@ def launch_app():
                 webbrowser.open(app_path)
             else:
                 os.startfile(app_path) if os.name == 'nt' else subprocess.Popen(app_path)
+            log_activity("launch_app", {"path": app_path, "is_link": is_link})
             return jsonify({"status": "success"})
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
     return jsonify({"status": "error"}), 400
 
+def _hid_enabled():
+    return bool(CONFIG.get("hid", {}).get("enabled", False))
+
+
+def _sync_hid_config():
+    """Keep the separate HID manager synchronized with main.py config."""
+    if not HID_MANAGER_AVAILABLE:
+        return
+    try:
+        hid_manager.configure(
+            enabled=_hid_enabled(),
+            script_path=CONFIG.get("hid", {}).get("script_path", "hid_scripts"),
+            capture_config=CONFIG.get("capture", {})
+        )
+    except Exception as e:
+        print("HID Manager Sync Error:", e)
+
+
+_sync_hid_config()
+
+
+@app.route('/api/hid/status', methods=['GET'])
+def hid_status():
+    if not HID_MANAGER_AVAILABLE:
+        return jsonify({"status": "error", "message": "hid_manager.py not found."}), 503
+    try:
+        return jsonify(hid_manager.status())
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/hid/toggle', methods=['POST'])
+def hid_toggle():
+    data = request.get_json(silent=True) or {}
+    enabled = bool(data.get("enabled", False))
+    CONFIG.setdefault("hid", {})["enabled"] = enabled
+    save_config()
+    _sync_hid_config()
+    try:
+        if HID_MANAGER_AVAILABLE:
+            hid_manager.enable() if enabled else hid_manager.disable()
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    return jsonify({"status": "success", "enabled": enabled})
+
+
+@app.route('/api/hid/scripts', methods=['GET'])
+def hid_scripts():
+    if not HID_MANAGER_AVAILABLE:
+        return jsonify([])
+    try:
+        return jsonify(hid_manager.list_scripts())
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/hid/script', methods=['GET'])
+def hid_script_get():
+    if not HID_MANAGER_AVAILABLE:
+        return jsonify({"status": "error", "message": "hid_manager.py not found."}), 503
+    name = request.args.get('name', '')
+    try:
+        return jsonify(hid_manager.get_script(name))
+    except FileNotFoundError as e:
+        return jsonify({"status": "error", "message": str(e)}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/hid/script', methods=['POST'])
+def hid_script_save():
+    if not HID_MANAGER_AVAILABLE:
+        return jsonify({"status": "error", "message": "hid_manager.py not found."}), 503
+    data = request.get_json(silent=True) or {}
+    try:
+        result = hid_manager.save_script(data.get("name", ""), data.get("content", ""))
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/hid/script', methods=['DELETE'])
+def hid_script_delete():
+    if not HID_MANAGER_AVAILABLE:
+        return jsonify({"status": "error", "message": "hid_manager.py not found."}), 503
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(hid_manager.delete_script(data.get("name", "")))
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/hid/run', methods=['POST'])
+def hid_script_run():
+    if not HID_MANAGER_AVAILABLE:
+        return jsonify({"status": "error", "message": "hid_manager.py not found."}), 503
+    if not _hid_enabled():
+        return jsonify({"status": "error", "message": "HID Manager is disabled."}), 403
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(hid_manager.run_script(data.get("name", "")))
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/hid/devices', methods=['GET'])
+def hid_devices():
+    if not HID_MANAGER_AVAILABLE:
+        return jsonify({"camera": [], "microphone": [], "screen": []})
+    try:
+        return jsonify(hid_manager.devices())
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/hid/capture/config', methods=['POST'])
+def hid_capture_config():
+    data = request.get_json(silent=True) or {}
+    cap = CONFIG.setdefault("capture", {})
+    for key in ("enabled", "camera_enabled", "microphone_enabled", "screen_enabled", "visible_recording_indicator"):
+        if key in data:
+            cap[key] = bool(data[key])
+    for key in ("camera_device", "microphone_device", "screen_device", "screen_display", "output_path"):
+        if key in data:
+            cap[key] = data[key]
+    save_config()
+    _sync_hid_config()
+    return jsonify({"status": "success", "capture": cap})
+
+
+@app.route('/api/hid/capture/start', methods=['POST'])
+def hid_capture_start():
+    if not HID_MANAGER_AVAILABLE:
+        return jsonify({"status": "error", "message": "hid_manager.py not found."}), 503
+    if not _hid_enabled():
+        return jsonify({"status": "error", "message": "HID Manager is disabled."}), 403
+    CONFIG.setdefault("capture", {})["enabled"] = True
+    save_config()
+    _sync_hid_config()
+    try:
+        return jsonify(hid_manager.start_capture())
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/hid/capture/stop', methods=['POST'])
+def hid_capture_stop():
+    if not HID_MANAGER_AVAILABLE:
+        return jsonify({"status": "error", "message": "hid_manager.py not found."}), 503
+    try:
+        result = hid_manager.stop_capture()
+        CONFIG.setdefault("capture", {})["enabled"] = False
+        save_config()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/open_url', methods=['POST'])
+def open_url_on_pc():
+    data = request.get_json(silent=True) or {}
+    url = str(data.get("url", "")).strip()
+    if not url:
+        return jsonify({"status": "error", "message": "URL is required."}), 400
+    if not url.lower().startswith(("http://", "https://")):
+        url = "https://" + url
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return jsonify({"status": "error", "message": "Invalid HTTP/HTTPS URL."}), 400
+    try:
+        webbrowser.open(url)
+        return jsonify({"status": "success", "url": url})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @socketio.on('media_control')
 def handle_media(data):
     action = data.get('action')
+    log_activity("media_control", {"action": action}, device=_client_device_label())
     matched = False
     for sc in CONFIG["custom_shortcuts"]:
         if sc.get("enabled", True) and sc["name"] == action:
@@ -720,9 +1509,10 @@ def run_flask():
 def start_pc_dashboard():
     root = tk.Tk()
     root.title("ASSHOLE DECK")
-    root.geometry("540x720")
+    root.geometry("540x780")
     root.configure(bg="#090d16")
-    root.resizable(False, False)
+    root.minsize(480, 560)
+    root.resizable(True, True)
 
     # Windows taskbar/app identity + icon fix.
     if os.name == "nt":
@@ -886,46 +1676,266 @@ def start_pc_dashboard():
 
     def refresh_app_list():
         list_apps.delete(0, tk.END)
-        for item in CONFIG["custom_apps"]:
+        for item in CONFIG.get("custom_apps", []):
             status = "📌 [Pinned]" if item.get("enabled", True) else "⚪ [Unpinned]"
-            icon = "🌐" if item.get('is_link') else "🚀"
+            icon = "🌐" if item.get("is_link") else "🚀"
             list_apps.insert(tk.END, f"{status} {icon} {item['name']}")
+
+        workspaces = CONFIG.get("workspaces", [])
+        if workspaces:
+            list_apps.insert(tk.END, "")
+            list_apps.insert(tk.END, "──────── 🗂 WORKSPACES ────────")
+            for ws in workspaces:
+                count = len(ws.get("items", []))
+                enabled = ws.get("enabled", True)
+                status = "📌" if enabled else "⚪"
+                list_apps.insert(tk.END, f"{status} 🗂 {ws.get('name', 'Workspace')} [{count} items]")
 
     def toggle_pin_app():
         sel = list_apps.curselection()
-        if sel:
-            idx = sel[0]
-            current_state = CONFIG["custom_apps"][idx].get("enabled", True)
-            CONFIG["custom_apps"][idx]["enabled"] = not current_state
-            save_config()
-            refresh_app_list()
+        if not sel:
+            return
+        idx = sel[0]
+        if idx >= len(CONFIG.get("custom_apps", [])):
+            return
+        current_state = CONFIG["custom_apps"][idx].get("enabled", True)
+        CONFIG["custom_apps"][idx]["enabled"] = not current_state
+        save_config()
+        refresh_app_list()
 
     def add_custom_link():
         dialog = DarkMultiInputDialog(root, "Add Web Link", [("Enter Link Name:", "name"), ("Enter URL (e.g. google.com):", "url")])
         if dialog.results:
             name = dialog.results.get("name")
             url = dialog.results.get("url")
-            if not url.startswith("http://") and not url.startswith("https://"):
+            if not url.startswith(("http://", "https://")):
                 url = "https://" + url
-            CONFIG["custom_apps"].append({"name": name, "path": url, "is_link": True, "enabled": True})
+            CONFIG.setdefault("custom_apps", []).append({"name": name, "path": url, "is_link": True, "enabled": True})
             save_config()
             refresh_app_list()
 
     def move_app(direction):
-        new_idx = move_item(list_apps, CONFIG["custom_apps"], direction)
-        if new_idx is not None:
+        sel = list_apps.curselection()
+        if not sel:
+            return
+        idx = sel[0]
+        custom_apps = CONFIG.get("custom_apps", [])
+        workspaces = CONFIG.get("workspaces", [])
+
+        if idx < len(custom_apps):
+            new_idx = move_item(list_apps, custom_apps, direction)
+            if new_idx is not None:
+                refresh_app_list()
+                list_apps.selection_set(new_idx)
+            return
+
+        # Workspace rows are appended after custom_apps + 2 header rows
+        # (a blank spacer row and the "──── WORKSPACES ────" label row).
+        ws_start = len(custom_apps) + 2
+        ws_idx = idx - ws_start
+        if 0 <= ws_idx < len(workspaces):
+            new_ws_idx = ws_idx + direction
+            if 0 <= new_ws_idx < len(workspaces):
+                workspaces[ws_idx], workspaces[new_ws_idx] = workspaces[new_ws_idx], workspaces[ws_idx]
+                save_config()
+                refresh_app_list()
+                list_apps.selection_set(ws_start + new_ws_idx)
+
+    # ---------------- WORKSPACE MANAGER ----------------
+    def open_workspace_manager():
+        CONFIG.setdefault("workspaces", [])
+        win = tk.Toplevel(root)
+        win.title("Workspace Manager")
+        win.configure(bg="#090d16")
+        win.geometry("680x500")
+        win.minsize(560, 400)
+        win.resizable(True, True)
+        win.transient(root)
+        win.grab_set()
+
+        tk.Label(win, text="🗂 Workspace Manager", font=("Segoe UI", 13, "bold"), fg="#ff4757", bg="#090d16").pack(pady=(12, 2))
+        tk.Label(win, text="Group multiple EXE files and web links into one-click launch buttons.", font=("Segoe UI", 8), fg="#64748b", bg="#090d16").pack(pady=(0, 10))
+
+        body = tk.Frame(win, bg="#090d16")
+        body.pack(fill="both", expand=True, padx=10, pady=5)
+
+        left = tk.Frame(body, bg="#121923", width=190)
+        left.pack(side="left", fill="y", padx=(0, 6))
+        left.pack_propagate(False)
+        right = tk.Frame(body, bg="#121923")
+        right.pack(side="left", fill="both", expand=True)
+
+        tk.Label(left, text="WORKSPACES", font=("Segoe UI", 8, "bold"), fg="#94a3b8", bg="#121923").pack(anchor="w", padx=8, pady=8)
+        ws_list = tk.Listbox(left, bg="#162032", fg="#fff", selectbackground="#ff4757", selectforeground="#fff", exportselection=False, borderwidth=0, font=("Segoe UI", 9))
+        ws_list.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+        tk.Label(right, text="ITEMS", font=("Segoe UI", 8, "bold"), fg="#94a3b8", bg="#121923").pack(anchor="w", padx=8, pady=8)
+        item_list = tk.Listbox(right, bg="#162032", fg="#fff", selectbackground="#ff4757", selectforeground="#fff", exportselection=False, borderwidth=0, font=("Segoe UI", 9))
+        item_list.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+        def selected_workspace():
+            sel = ws_list.curselection()
+            if not sel:
+                return None
+            return CONFIG["workspaces"][sel[0]]
+
+        def refresh_ws():
+            ws_list.delete(0, tk.END)
+            for ws in CONFIG["workspaces"]:
+                icon = "📌" if ws.get("enabled", True) else "⚪"
+                ws_list.insert(tk.END, f"{icon} {ws.get('name', 'Workspace')}")
+            if CONFIG["workspaces"] and not ws_list.curselection():
+                ws_list.selection_set(0)
+            refresh_items()
+
+        def refresh_items(event=None):
+            item_list.delete(0, tk.END)
+            ws = selected_workspace()
+            if not ws:
+                return
+            for item in ws.get("items", []):
+                pin_icon = "📌" if item.get("enabled", True) else "⚪"
+                type_icon = "🌐" if item.get("is_link") else "🚀"
+                item_list.insert(tk.END, f"{pin_icon} {type_icon} {item.get('name', 'Item')}  —  {item.get('path', '')}")
+
+        def create_workspace():
+            dialog = DarkMultiInputDialog(win, "New Workspace", [("Workspace Name:", "name")])
+            if dialog.results:
+                name = dialog.results["name"]
+                if any(w.get("name", "").lower() == name.lower() for w in CONFIG["workspaces"]):
+                    messagebox.showwarning("Workspace", "A workspace with this name already exists.", parent=win)
+                    return
+                CONFIG["workspaces"].append({"name": name, "enabled": True, "items": []})
+                save_config()
+                refresh_ws()
+                ws_list.selection_clear(0, tk.END)
+                ws_list.selection_set(tk.END)
+                refresh_items()
+                refresh_app_list()
+
+        def delete_workspace():
+            sel = ws_list.curselection()
+            if not sel:
+                return
+            CONFIG["workspaces"].pop(sel[0])
+            save_config()
+            refresh_ws()
             refresh_app_list()
-            list_apps.selection_set(new_idx)
+
+        def toggle_workspace():
+            ws = selected_workspace()
+            if ws is None:
+                return
+            ws["enabled"] = not ws.get("enabled", True)
+            save_config()
+            refresh_ws()
+            refresh_app_list()
+
+        def add_workspace_exe():
+            ws = selected_workspace()
+            if ws is None:
+                messagebox.showwarning("Workspace", "Create/select a workspace first.", parent=win)
+                return
+            path = filedialog.askopenfilename(parent=win, filetypes=[("Executables", "*.exe"), ("All files", "*.*")])
+            if path:
+                name = os.path.splitext(os.path.basename(path))[0]
+                ws.setdefault("items", []).append({"name": name, "path": path, "is_link": False, "enabled": True})
+                save_config()
+                refresh_items()
+                refresh_app_list()
+
+        def add_workspace_url():
+            ws = selected_workspace()
+            if ws is None:
+                messagebox.showwarning("Workspace", "Create/select a workspace first.", parent=win)
+                return
+            dialog = DarkMultiInputDialog(win, "Add Workspace Link", [("Link Name:", "name"), ("URL:", "url")])
+            if dialog.results:
+                url = dialog.results["url"]
+                if not url.startswith(("http://", "https://")):
+                    url = "https://" + url
+                ws.setdefault("items", []).append({"name": dialog.results["name"], "path": url, "is_link": True, "enabled": True})
+                save_config()
+                refresh_items()
+                refresh_app_list()
+
+        def toggle_workspace_item():
+            ws = selected_workspace()
+            sel = item_list.curselection()
+            if ws is None or not sel:
+                return
+            items = ws.get("items", [])
+            if sel[0] >= len(items):
+                return
+            items[sel[0]]["enabled"] = not items[sel[0]].get("enabled", True)
+            save_config()
+            refresh_items()
+            item_list.selection_set(sel[0])
+            refresh_app_list()
+
+        def remove_workspace_item():
+            ws = selected_workspace()
+            sel = item_list.curselection()
+            if ws is None or not sel:
+                return
+            ws["items"].pop(sel[0])
+            save_config()
+            refresh_items()
+            refresh_app_list()
+
+        def launch_workspace():
+            ws = selected_workspace()
+            if ws is None:
+                return
+            if not ws.get("enabled", True):
+                messagebox.showwarning("Workspace", "This workspace is disabled/unpinned.", parent=win)
+                return
+            errors = []
+            launched = 0
+            for item in ws.get("items", []):
+                if not item.get("enabled", True):
+                    continue
+                path = str(item.get("path", "")).strip()
+                try:
+                    if not path:
+                        continue
+                    if item.get("is_link", False):
+                        webbrowser.open(path)
+                    elif os.name == "nt":
+                        os.startfile(path)
+                    else:
+                        subprocess.Popen([path])
+                    launched += 1
+                except Exception as exc:
+                    errors.append(f"{item.get('name', path)}: {exc}")
+            if errors:
+                messagebox.showwarning("Workspace Launch", f"Opened {launched} item(s).\n\n" + "\n".join(errors[:8]), parent=win)
+
+        ws_list.bind("<<ListboxSelect>>", refresh_items)
+
+        controls = tk.Frame(win, bg="#090d16")
+        controls.pack(fill="x", padx=10, pady=(5, 10))
+        tk.Button(controls, text="➕ Workspace", command=create_workspace, bg="#1e293b", fg="#fff", relief="flat", padx=7, pady=4).pack(side="left", padx=2)
+        tk.Button(controls, text="📌 Enable", command=toggle_workspace, bg="#1e293b", fg="#34d399", relief="flat", padx=7, pady=4).pack(side="left", padx=2)
+        tk.Button(controls, text="➕ .exe", command=add_workspace_exe, bg="#1e293b", fg="#fff", relief="flat", padx=7, pady=4).pack(side="left", padx=2)
+        tk.Button(controls, text="🌐 URL", command=add_workspace_url, bg="#1e293b", fg="#38bdf8", relief="flat", padx=7, pady=4).pack(side="left", padx=2)
+        tk.Button(controls, text="📌 Pin Item", command=toggle_workspace_item, bg="#1e293b", fg="#34d399", relief="flat", padx=7, pady=4).pack(side="left", padx=2)
+        tk.Button(controls, text="🗑 Item", command=remove_workspace_item, bg="#1e293b", fg="#fca5a5", relief="flat", padx=7, pady=4).pack(side="left", padx=2)
+        tk.Button(controls, text="🗑 Workspace", command=delete_workspace, bg="#7f1d1d", fg="#fff", relief="flat", padx=7, pady=4).pack(side="left", padx=2)
+        tk.Button(controls, text="🚀 Open All", command=launch_workspace, bg="#ff4757", fg="#fff", font=("Segoe UI", 9, "bold"), relief="flat", padx=10, pady=4).pack(side="right", padx=2)
+
+        refresh_ws()
 
     a_btns = tk.Frame(tab_apps, bg="#121923")
     a_btns.pack(fill="x", padx=6, pady=6)
-    
+
     tk.Button(a_btns, text="📌 Toggle Pin", command=toggle_pin_app, bg="#1e293b", fg="#34d399", relief="flat", padx=4, pady=3, cursor="hand2").pack(side="left", padx=2)
     tk.Button(a_btns, text="➕ .exe", command=lambda: [CONFIG["custom_apps"].append({"name": os.path.basename(f).replace('.exe', '').capitalize(), "path": f, "is_link": False, "enabled": True}) if (f:=filedialog.askopenfilename(filetypes=[("Executables", "*.exe")])) else None, save_config(), refresh_app_list()], bg="#1e293b", fg="#fff", relief="flat", padx=4, pady=3, cursor="hand2").pack(side="left", padx=2)
     tk.Button(a_btns, text="🌐 URL", command=add_custom_link, bg="#1e293b", fg="#38bdf8", relief="flat", padx=4, pady=3, cursor="hand2").pack(side="left", padx=2)
+    tk.Button(a_btns, text="🗂 Workspace", command=open_workspace_manager, bg="#1e293b", fg="#fbbf24", relief="flat", padx=5, pady=3, cursor="hand2").pack(side="left", padx=2)
     tk.Button(a_btns, text="⬆️", command=lambda: move_app(-1), bg="#1e293b", fg="#fff", relief="flat", padx=4, pady=3, cursor="hand2").pack(side="left", padx=2)
     tk.Button(a_btns, text="⬇️", command=lambda: move_app(1), bg="#1e293b", fg="#fff", relief="flat", padx=4, pady=3, cursor="hand2").pack(side="left", padx=2)
-    tk.Button(a_btns, text="🗑️ Delete", command=lambda: [CONFIG["custom_apps"].pop(sel[0]) if (sel:=list_apps.curselection()) else None, save_config(), refresh_app_list()], bg="#7f1d1d", fg="#fff", relief="flat", padx=4, pady=3, cursor="hand2").pack(side="right", padx=2)
+    tk.Button(a_btns, text="🗑️ Delete", command=lambda: [CONFIG["custom_apps"].pop(sel[0]) if (sel:=list_apps.curselection()) and sel[0] < len(CONFIG.get("custom_apps", [])) else None, save_config(), refresh_app_list()], bg="#7f1d1d", fg="#fff", relief="flat", padx=4, pady=3, cursor="hand2").pack(side="right", padx=2)
 
     # ================= ⚡ SHORTCUTS TAB =================
     tab_sc = tk.Frame(notebook, bg="#121923")
@@ -1072,9 +2082,40 @@ def start_pc_dashboard():
     volume_scale.set(SOUND_PLAYER.volume)
     volume_scale.pack(side="left", fill="x", expand=True, padx=8)
 
-    # ================= ⚙️ SETTINGS TAB =================
-    tab_settings = tk.Frame(notebook, bg="#121923", padx=10, pady=10)
-    notebook.add(tab_settings, text="⚙️ Settings")
+    # ================= ⚙️ SETTINGS TAB (scrollable) =================
+    tab_settings_outer = tk.Frame(notebook, bg="#121923")
+    notebook.add(tab_settings_outer, text="⚙️ Settings")
+
+    settings_canvas = tk.Canvas(tab_settings_outer, bg="#121923", highlightthickness=0)
+    settings_scrollbar = tk.Scrollbar(tab_settings_outer, orient="vertical", command=settings_canvas.yview)
+    settings_canvas.configure(yscrollcommand=settings_scrollbar.set)
+
+    settings_scrollbar.pack(side="right", fill="y")
+    settings_canvas.pack(side="left", fill="both", expand=True)
+
+    tab_settings = tk.Frame(settings_canvas, bg="#121923", padx=10, pady=10)
+    settings_window_id = settings_canvas.create_window((0, 0), window=tab_settings, anchor="nw")
+
+    def _on_settings_frame_configure(event=None):
+        settings_canvas.configure(scrollregion=settings_canvas.bbox("all"))
+
+    def _on_settings_canvas_configure(event):
+        settings_canvas.itemconfig(settings_window_id, width=event.width)
+
+    tab_settings.bind("<Configure>", _on_settings_frame_configure)
+    settings_canvas.bind("<Configure>", _on_settings_canvas_configure)
+
+    def _on_settings_mousewheel(event):
+        settings_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def _bind_settings_mousewheel(event):
+        settings_canvas.bind_all("<MouseWheel>", _on_settings_mousewheel)
+
+    def _unbind_settings_mousewheel(event):
+        settings_canvas.unbind_all("<MouseWheel>")
+
+    settings_canvas.bind("<Enter>", _bind_settings_mousewheel)
+    settings_canvas.bind("<Leave>", _unbind_settings_mousewheel)
 
     tk.Label(
         tab_settings,
@@ -1117,6 +2158,108 @@ def start_pc_dashboard():
         padx=8,
         cursor="hand2"
     ).pack(side="right")
+
+    # ================= ⌨ HID SETTINGS =================
+    tk.Label(
+        tab_settings,
+        text="⌨ HID Script Directory:",
+        font=("Segoe UI", 9, "bold"),
+        fg="#38bdf8",
+        bg="#121923"
+    ).pack(anchor="w", pady=(15, 2))
+
+    hid_path_frame = tk.Frame(tab_settings, bg="#121923")
+    hid_path_frame.pack(fill="x", pady=5)
+
+    hid_path_entry = tk.Entry(
+        hid_path_frame,
+        bg="#162032",
+        fg="#ffffff",
+        insertbackground="#ff4757",
+        relief="flat",
+        font=("Segoe UI", 9)
+    )
+    hid_path_entry.pack(side="left", fill="x", expand=True, ipady=4, padx=(0, 5))
+    hid_path_entry.insert(
+        0,
+        CONFIG.get("hid", {}).get("script_path", "hid_scripts")
+    )
+
+    def browse_hid_dir():
+        dir_selected = filedialog.askdirectory()
+        if dir_selected:
+            hid_path_entry.delete(0, tk.END)
+            hid_path_entry.insert(0, dir_selected)
+
+    tk.Button(
+        hid_path_frame,
+        text="📁 Browse",
+        command=browse_hid_dir,
+        bg="#1e293b",
+        fg="#fff",
+        relief="flat",
+        padx=8,
+        cursor="hand2"
+    ).pack(side="right")
+
+    tk.Label(
+        tab_settings,
+        text="Scripts are saved here and shown in the Web UI HID manager.",
+        font=("Segoe UI", 8),
+        fg="#64748b",
+        bg="#121923"
+    ).pack(anchor="w", pady=(0, 2))
+
+    # ================= 🎥 CAPTURE SETTINGS =================
+    tk.Label(
+        tab_settings,
+        text="🎥 Capture Output Directory:",
+        font=("Segoe UI", 9, "bold"),
+        fg="#34d399",
+        bg="#121923"
+    ).pack(anchor="w", pady=(12, 2))
+
+    capture_path_frame = tk.Frame(tab_settings, bg="#121923")
+    capture_path_frame.pack(fill="x", pady=5)
+
+    capture_path_entry = tk.Entry(
+        capture_path_frame,
+        bg="#162032",
+        fg="#ffffff",
+        insertbackground="#ff4757",
+        relief="flat",
+        font=("Segoe UI", 9)
+    )
+    capture_path_entry.pack(side="left", fill="x", expand=True, ipady=4, padx=(0, 5))
+    capture_path_entry.insert(
+        0,
+        CONFIG.get("capture", {}).get("output_path", "captures")
+    )
+
+    def browse_capture_dir():
+        dir_selected = filedialog.askdirectory()
+        if dir_selected:
+            capture_path_entry.delete(0, tk.END)
+            capture_path_entry.insert(0, dir_selected)
+
+    tk.Button(
+        capture_path_frame,
+        text="📁 Browse",
+        command=browse_capture_dir,
+        bg="#1e293b",
+        fg="#fff",
+        relief="flat",
+        padx=8,
+        cursor="hand2"
+    ).pack(side="right")
+
+    tk.Label(
+        tab_settings,
+        text="Camera, microphone and screen recordings will be saved here.",
+        font=("Segoe UI", 8),
+        fg="#64748b",
+        bg="#121923"
+    ).pack(anchor="w", pady=(0, 2))
 
     tk.Label(
         tab_settings,
@@ -1168,12 +2311,124 @@ def start_pc_dashboard():
         bg="#121923"
     ).pack(anchor="w", pady=(2, 0))
 
+    # ================= 🕐 WEBUI CLOCK TIMEZONE =================
+    tk.Label(
+        tab_settings,
+        text="🕐 WebUI Clock Timezone:",
+        font=("Segoe UI", 9, "bold"),
+        fg="#fbbf24",
+        bg="#121923"
+    ).pack(anchor="w", pady=(15, 2))
+
+    tz_frame = tk.Frame(tab_settings, bg="#121923")
+    tz_frame.pack(fill="x", pady=5)
+
+    tz_values = ["Auto (Browser / PC Local)"] + sorted(available_timezones())
+    tz_combo = ttk.Combobox(
+        tz_frame,
+        values=tz_values,
+        state="readonly",
+        font=("Segoe UI", 9)
+    )
+    tz_combo.pack(fill="x", ipady=3)
+
+    current_tz = CONFIG.get("webui_timezone", "")
+    tz_combo.set(current_tz if current_tz in tz_values else "Auto (Browser / PC Local)")
+
+    tk.Label(
+        tab_settings,
+        text="Used by the WebUI clock/focus popup. Auto uses the viewing device's own timezone.",
+        font=("Segoe UI", 8),
+        fg="#64748b",
+        bg="#121923"
+    ).pack(anchor="w", pady=(2, 0))
+
+    # ================= 🚀 AUTO-START / SYSTEM TRAY =================
+    tk.Label(
+        tab_settings,
+        text="🚀 Startup & Tray:",
+        font=("Segoe UI", 9, "bold"),
+        fg="#fbbf24",
+        bg="#121923"
+    ).pack(anchor="w", pady=(15, 2))
+
+    autostart_var = tk.BooleanVar(value=is_auto_start_enabled())
+    tray_close_var = tk.BooleanVar(value=CONFIG.get("minimize_to_tray_on_close", True))
+
+    def on_autostart_toggle():
+        ok = set_auto_start(autostart_var.get())
+        if not ok and os.name != "nt":
+            messagebox.showwarning("Not Supported", "Auto-start is only supported on Windows.")
+            autostart_var.set(False)
+        elif not ok:
+            messagebox.showerror("Error", "Could not update the Windows Startup entry.")
+            autostart_var.set(not autostart_var.get())
+        CONFIG["auto_start"] = autostart_var.get()
+        save_config()
+
+    def on_tray_close_toggle():
+        CONFIG["minimize_to_tray_on_close"] = tray_close_var.get()
+        save_config()
+        if tray_close_var.get() and not PYSTRAY_AVAILABLE:
+            messagebox.showwarning(
+                "pystray not installed",
+                "Install it with:  pip install pystray\n\nUntil then, closing the window will exit the app."
+            )
+
+    tk.Checkbutton(
+        tab_settings,
+        text="Start with Windows (auto-start on login)",
+        variable=autostart_var,
+        command=on_autostart_toggle,
+        font=("Segoe UI", 9),
+        fg="#e2e8f0",
+        bg="#121923",
+        selectcolor="#162032",
+        activebackground="#121923",
+        activeforeground="#fff"
+    ).pack(anchor="w", pady=(4, 0))
+
+    tk.Checkbutton(
+        tab_settings,
+        text="Minimize to system tray when window is closed (⚫ instead of quitting)",
+        variable=tray_close_var,
+        command=on_tray_close_toggle,
+        font=("Segoe UI", 9),
+        fg="#e2e8f0",
+        bg="#121923",
+        selectcolor="#162032",
+        activebackground="#121923",
+        activeforeground="#fff"
+    ).pack(anchor="w", pady=(2, 0))
+
+    if not PYSTRAY_AVAILABLE:
+        tk.Label(
+            tab_settings,
+            text="⚠ 'pystray' not installed — tray icon disabled until you run: pip install pystray",
+            font=("Segoe UI", 8),
+            fg="#fca5a5",
+            bg="#121923",
+            wraplength=460,
+            justify="left"
+        ).pack(anchor="w", pady=(2, 0))
+
     def save_settings():
         new_screenshot_path = path_entry.get().strip()
+        new_hid_path = hid_path_entry.get().strip()
+        new_capture_path = capture_path_entry.get().strip()
         new_soundboard_path = sound_path_entry.get().strip()
+        new_tz = tz_combo.get().strip()
 
         if not new_screenshot_path:
             messagebox.showwarning("Invalid Path", "Screenshot directory cannot be empty.")
+            return
+
+        if not new_hid_path:
+            messagebox.showwarning("Invalid Path", "HID script directory cannot be empty.")
+            return
+
+        if not new_capture_path:
+            messagebox.showwarning("Invalid Path", "Capture output directory cannot be empty.")
             return
 
         if not new_soundboard_path:
@@ -1181,13 +2436,17 @@ def start_pc_dashboard():
             return
 
         CONFIG["screenshot_path"] = new_screenshot_path
+        CONFIG.setdefault("hid", {})["script_path"] = new_hid_path
+        CONFIG.setdefault("capture", {})["output_path"] = new_capture_path
         CONFIG["soundboard_path"] = new_soundboard_path
+        CONFIG["webui_timezone"] = "" if new_tz.startswith("Auto") else new_tz
         save_config()
+        _sync_hid_config()
 
         messagebox.showinfo(
             "Success",
             "Settings saved successfully.\n\n"
-            "The Web UI Sound Effects page will use the new soundboard path."
+            "HID scripts and Capture recordings will use the new paths."
         )
 
     tk.Button(
@@ -1208,6 +2467,19 @@ def start_pc_dashboard():
     refresh_sc_list()
     refresh_player_list()
     update_qr_and_ip()
+
+    def on_root_close():
+        if CONFIG.get("minimize_to_tray_on_close", True) and PYSTRAY_AVAILABLE:
+            minimize_to_tray(root)
+        else:
+            root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", on_root_close)
+
+    # Auto-launch the tray icon at startup too, so it's there even before
+    # the user closes the window for the first time.
+    if CONFIG.get("minimize_to_tray_on_close", True) and PYSTRAY_AVAILABLE:
+        _tray_icon_ref["icon"] = setup_system_tray(root)
 
     root.mainloop()
 

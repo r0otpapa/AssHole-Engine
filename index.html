@@ -8,7 +8,7 @@
 
 <title>ASSHOLE - Remote Engine Dashboard</title>
 
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="/socket.io.min.js" onerror="(function(el){var f=document.createElement('script');f.src='https://cdn.socket.io/4.5.4/socket.io.min.js';document.head.appendChild(f);})(this)"></script>
 
 <link rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -61,6 +61,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    cursor: pointer;
 }
 
 .brand i {
@@ -645,7 +646,414 @@
         word-break: break-word;
     }
 
+    /* ================= TOAST (non-blocking notifications) ================= */
+
+    #toastContainer {
+        position: fixed;
+        bottom: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 5000;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: center;
+        pointer-events: none;
+        width: 100%;
+        padding: 0 10px;
+    }
+
+    .toast {
+        background: #1b2838;
+        border: 1px solid #2a475e;
+        border-left: 3px solid #ff4757;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 9px 14px;
+        border-radius: 7px;
+        box-shadow: 0 8px 20px rgba(0,0,0,.6);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity .25s, transform .25s;
+        max-width: 92vw;
+        text-align: center;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .toast.success {
+        border-left-color: #34d399;
+    }
+
     /* ================= SOUNDBOARD ================= */
+
+    .sound-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .sound-search-box {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #121923;
+        border: 1px solid #2a475e;
+        border-radius: 20px;
+        padding: 6px 10px;
+        min-width: 0;
+    }
+
+    .sound-search-box i {
+        color: #64748b;
+        font-size: 11px;
+        flex-shrink: 0;
+    }
+
+    .sound-search-box input {
+        flex: 1;
+        min-width: 0;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: #fff;
+        font-size: 10px;
+    }
+
+    .sound-search-box input::placeholder {
+        color: #64748b;
+    }
+
+    .sound-folder-card {
+        cursor: pointer;
+    }
+
+    /* ================= CLOCK / FOCUS MODE / TIMER (full-screen analog) ================= */
+
+    .clock-modal-overlay {
+        background: #000;
+        padding: 0;
+    }
+
+    .clock-fullscreen {
+        width: 100%;
+        height: 100vh;
+        max-width: 100%;
+        max-height: 100vh;
+        background: #000;
+        border: none;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .clock-close-btn {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        z-index: 6;
+    }
+
+    .clock-pages-wrap {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    .clock-page {
+        display: none;
+        flex: 1;
+        height: 100%;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 26px;
+        padding: 20px;
+    }
+
+    .clock-page.active {
+        display: flex;
+    }
+
+    .clock-nav-btn {
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.18);
+        color: #fff;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        font-size: 14px;
+        cursor: pointer;
+        flex-shrink: 0;
+        z-index: 5;
+    }
+
+    .clock-nav-left {
+        margin-left: 10px;
+    }
+
+    .clock-nav-right {
+        margin-right: 10px;
+    }
+
+    .clock-page-dots {
+        display: flex;
+        justify-content: center;
+        gap: 7px;
+        padding: 14px 0 18px;
+    }
+
+    .clock-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #333;
+    }
+
+    .clock-dot.active {
+        background: #ff4757;
+    }
+
+    .analog-clock-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .analog-clock-svg {
+        width: min(62vw, 260px);
+        height: min(62vw, 260px);
+    }
+
+    .analog-face {
+        fill: #0a0a0a;
+        stroke: #2a2a2a;
+        stroke-width: 2;
+    }
+
+    .analog-tick {
+        stroke: #555;
+        stroke-width: 2;
+    }
+
+    .analog-hand {
+        stroke-linecap: round;
+    }
+
+    .hand-hour {
+        stroke: #fff;
+        stroke-width: 5;
+    }
+
+    .hand-minute {
+        stroke: #fff;
+        stroke-width: 3.5;
+    }
+
+    .hand-second {
+        stroke: #ff4757;
+        stroke-width: 1.5;
+    }
+
+    .analog-center {
+        fill: #ff4757;
+    }
+
+    .clock-date {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-top: 4px;
+    }
+
+    .clock-tz {
+        font-size: 9px;
+        color: #66c0f4;
+        margin-top: 2px;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+    }
+
+    .system-stats-side {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .system-stats-side .stat-pill {
+        flex: none;
+        width: 76px;
+    }
+
+    .focus-timer-section {
+        background: rgba(255,255,255,.04);
+        border: 1px solid #2a475e;
+        border-radius: 9px;
+        padding: 16px;
+        width: 100%;
+        max-width: 320px;
+    }
+
+    .focus-timer-title {
+        font-size: 10px;
+        font-weight: 800;
+        color: #94a3b8;
+        letter-spacing: .5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .focus-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .focus-status-pill {
+        font-size: 9px;
+        font-weight: 800;
+        padding: 4px 9px;
+        border-radius: 20px;
+        background: #1e293b;
+        color: #94a3b8;
+        border: 1px solid #2a475e;
+    }
+
+    .focus-status-pill.active {
+        background: #064e3b;
+        color: #34d399;
+        border-color: #059669;
+    }
+
+    .focus-elapsed {
+        font-size: 11px;
+        color: #cbd5e1;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .timer-display {
+        font-size: 28px;
+        font-weight: 800;
+        text-align: center;
+        color: #fbbf24;
+        font-variant-numeric: tabular-nums;
+        margin: 6px 0 10px;
+    }
+
+    .timer-input-row {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .timer-input-row input {
+        flex: 1;
+        background: #162032;
+        border: 1px solid #2a475e;
+        color: #fff;
+        border-radius: 6px;
+        padding: 6px;
+        font-size: 10px;
+        text-align: center;
+    }
+
+    .timer-btn-row {
+        display: flex;
+        gap: 6px;
+    }
+
+    /* ================= ALARM / TODO LIST PAGES ================= */
+
+    .list-page-section {
+        max-width: 300px;
+        width: 100%;
+    }
+
+    .timer-input-row input[type="time"],
+    .timer-input-row input[type="text"] {
+        text-align: left;
+    }
+
+    .list-page-items {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 42vh;
+        overflow-y: auto;
+        margin-top: 4px;
+    }
+
+    .list-page-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255,255,255,.04);
+        border: 1px solid #2a475e;
+        border-radius: 7px;
+        padding: 7px 8px;
+    }
+
+    .list-page-row.done .list-item-text {
+        text-decoration: line-through;
+        color: #64748b;
+    }
+
+    .list-page-row input[type="checkbox"] {
+        width: 15px;
+        height: 15px;
+        accent-color: #34d399;
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+
+    .list-item-text {
+        flex: 1;
+        min-width: 0;
+        font-size: 10px;
+        color: #e2e8f0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .list-item-toggle {
+        background: #1e293b;
+        border: 1px solid #2a475e;
+        color: #94a3b8;
+        border-radius: 4px;
+        font-size: 9px;
+        padding: 4px 6px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .list-item-toggle.on {
+        color: #34d399;
+        border-color: #059669;
+    }
+
+    .list-item-del {
+        background: #1e293b;
+        border: 1px solid #7f1d1d;
+        color: #fca5a5;
+        border-radius: 4px;
+        font-size: 9px;
+        padding: 4px 7px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
 
     .sound-grid {
         display: grid;
@@ -948,6 +1356,116 @@
             max-width: 90px;
         }
     }
+
+    /* ================= MOBILE LANDSCAPE (Clock/Focus/Timer modal) ================= */
+
+    @media (orientation: landscape) and (max-height: 500px) {
+
+        .analog-clock-svg {
+            width: min(34vh, 190px);
+            height: min(34vh, 190px);
+        }
+
+        .clock-page {
+            gap: 14px;
+            padding: 10px;
+        }
+
+        .focus-timer-section {
+            padding: 10px;
+            max-width: 260px;
+        }
+
+        .clock-nav-btn {
+            width: 32px;
+            height: 32px;
+        }
+
+        .clock-page-dots {
+            padding: 6px 0 10px;
+        }
+    }
+
+    /* ================= SYSTEM STATS (Battery / CPU / RAM) ================= */
+
+    .stat-pill {
+        flex: 1;
+        background: rgba(255,255,255,.05);
+        border: 1px solid #2a475e;
+        border-radius: 8px;
+        padding: 8px 6px;
+        text-align: center;
+    }
+
+    .stat-pill i {
+        font-size: 13px;
+        color: #66c0f4;
+        margin-bottom: 3px;
+        display: block;
+    }
+
+    .stat-pill-value {
+        font-size: 13px;
+        font-weight: 800;
+        color: #fff;
+    }
+
+    .stat-pill-label {
+        font-size: 7px;
+        color: #64748b;
+        letter-spacing: .5px;
+        margin-top: 1px;
+    }
+
+    /* ================= FILE UPLOAD (mobile -> PC Downloads) ================= */
+
+    .upload-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #1b2838;
+        border: 1px solid #2a475e;
+        color: #34d399;
+        padding: 5px 9px;
+        border-radius: 6px;
+        font-size: 9px;
+        font-weight: bold;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .upload-progress-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 6px 0 8px;
+    }
+
+    .upload-progress-track {
+        flex: 1;
+        height: 7px;
+        background: #121923;
+        border: 1px solid #2a475e;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .upload-progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg,#059669,#34d399);
+        border-radius: 20px;
+        transition: width .15s;
+    }
+
+    .upload-progress-text {
+        font-size: 9px;
+        font-weight: 800;
+        color: #34d399;
+        min-width: 32px;
+        text-align: right;
+        flex-shrink: 0;
+    }
 </style>
 
 </head>
@@ -959,7 +1477,7 @@
 <div class="header">
 
 
-<div class="brand">
+<div class="brand" onclick="openClockModal()" title="Time / Focus Mode / Timer">
     <i class="fa-solid fa-gamepad"></i>
 
     <div class="brand-text">
@@ -983,6 +1501,14 @@
 
         <i class="fa-solid fa-keyboard"></i>
         I/O
+
+    </button>
+
+    <button class="header-btn"
+            onclick="openHIDModal()">
+
+        <i class="fa-solid fa-keyboard"></i>
+        HID / CAPTURE
 
     </button>
 
@@ -1017,11 +1543,11 @@
 <div id="customShortcutList"
      class="horizontal-row">
 
-```
+
 <div class="deck-btn">
     <span>Loading...</span>
 </div>
-```
+
 
 </div>
 
@@ -1040,7 +1566,7 @@
 
 <div class="horizontal-row system-controls">
 
-```
+
 <button class="deck-btn"
         onclick="sendMedia('minimize_all')">
 
@@ -1128,7 +1654,7 @@
     </span>
 
 </button>
-```
+
 
 </div>
 
@@ -1147,7 +1673,7 @@
 
 <div class="horizontal-row nav-controls">
 
-```
+
 <button class="deck-btn"
         onclick="sendMedia('arrow_up')">
 
@@ -1235,7 +1761,7 @@
     </span>
 
 </button>
-```
+
 
 </div>
 
@@ -1254,7 +1780,7 @@
 
 <div class="horizontal-row media-controls">
 
-```
+
 <button class="deck-btn"
         onclick="sendMedia('play_pause')">
 
@@ -1342,7 +1868,7 @@
     </span>
 
 </button>
-```
+
 
 </div>
 
@@ -1370,11 +1896,11 @@
 <div id="appTopList"
      class="app-top-row">
 
-```
+
 <div class="app-icon-btn">
     <span>Loading...</span>
 </div>
-```
+
 
 </div>
 
@@ -1397,7 +1923,7 @@
 
 <div class="explorer-toolbar">
 
-```
+
 <select id="mediaSourceSelect"
         onchange="loadMedia()">
 
@@ -1407,8 +1933,8 @@
 
 </select>
 
-<div id="fileModeToggle"
-     class="file-mode-toggle"
+<div class="file-mode-toggle"
+     id="fileModeToggle"
      onclick="toggleMediaMode()">
 
     <span class="toggle-label"
@@ -1423,7 +1949,32 @@
     </span>
 
 </div>
-```
+
+<button class="upload-btn"
+        onclick="document.getElementById('uploadFileInput').click()">
+
+    <i class="fa-solid fa-upload"></i>
+    UPLOAD
+
+</button>
+
+<input type="file"
+       id="uploadFileInput"
+       style="display:none;"
+       onchange="uploadFileToPC(this.files)">
+
+
+</div>
+
+<div id="uploadProgressWrap"
+     class="upload-progress-wrap"
+     style="display:none;">
+
+    <div class="upload-progress-track">
+        <div class="upload-progress-fill" id="uploadProgressFill"></div>
+    </div>
+
+    <span class="upload-progress-text" id="uploadProgressText">0%</span>
 
 </div>
 
@@ -1471,7 +2022,7 @@
 <div id="appsModal"
      class="modal-overlay">
 
-```
+
 <div class="modal-content">
 
     <div class="modal-header">
@@ -1506,7 +2057,7 @@
     </div>
 
 </div>
-```
+
 
 </div>
 
@@ -1515,7 +2066,7 @@
 <div id="soundboardModal"
      class="modal-overlay">
 
-```
+
 <div class="modal-content">
 
     <div class="modal-header">
@@ -1565,6 +2116,53 @@
 
         </div>
 
+        <div class="sound-toolbar">
+
+            <div class="sound-search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text"
+                       id="soundSearchInput"
+                       placeholder="Search sounds..."
+                       oninput="filterSoundboard(this.value)">
+            </div>
+
+            <div id="soundModeToggle"
+                 class="file-mode-toggle"
+                 onclick="toggleSoundboardMode()">
+
+                <span class="toggle-label"
+                      id="soundToggleLabel">
+                    FLAT
+                </span>
+
+                <div class="toggle-switch"></div>
+
+                <span class="toggle-label">
+                    EXPLORER
+                </span>
+
+            </div>
+
+        </div>
+
+        <div id="soundFolderNav"
+             class="folder-nav"
+             style="display:none;">
+
+            <button class="back-btn"
+                    onclick="navigateSoundBack()">
+
+                <i class="fa-solid fa-arrow-left"></i>
+                BACK
+
+            </button>
+
+            <span id="soundCurrentFolderPath">
+                Root
+            </span>
+
+        </div>
+
         <div id="soundGrid"
              class="sound-grid">
 
@@ -1577,16 +2175,240 @@
     </div>
 
 </div>
-```
+
 
 </div>
+
+<!-- ================= CLOCK / FOCUS / TIMER MODAL ================= -->
+
+<div id="clockModal"
+     class="modal-overlay clock-modal-overlay">
+
+
+<div class="modal-content clock-fullscreen">
+
+    <button class="close-modal clock-close-btn"
+            onclick="closeClockModal()">
+
+        ✕ Close
+
+    </button>
+
+    <div class="clock-pages-wrap">
+
+        <button class="clock-nav-btn clock-nav-left"
+                onclick="clockPageNav(-1)">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+
+        <div class="clock-page active" id="clockPage-clock">
+
+            <div class="analog-clock-wrap">
+
+                <svg viewBox="0 0 200 200" class="analog-clock-svg">
+                    <circle cx="100" cy="100" r="96" class="analog-face"/>
+
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(0 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(30 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(60 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(90 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(120 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(150 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(180 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(210 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(240 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(270 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(300 100 100)"/>
+                    <line x1="100" y1="10" x2="100" y2="22" class="analog-tick" transform="rotate(330 100 100)"/>
+
+                    <line id="handHour" x1="100" y1="100" x2="100" y2="58" class="analog-hand hand-hour"/>
+                    <line id="handMinute" x1="100" y1="100" x2="100" y2="38" class="analog-hand hand-minute"/>
+                    <line id="handSecond" x1="100" y1="100" x2="100" y2="28" class="analog-hand hand-second"/>
+
+                    <circle cx="100" cy="100" r="4" class="analog-center"/>
+                </svg>
+
+                <div class="clock-date" id="liveClockDate">-</div>
+                <div class="clock-tz" id="liveClockTz">Auto (Local)</div>
+
+            </div>
+
+            <div class="system-stats-side">
+
+                <div class="stat-pill">
+                    <i class="fa-solid fa-microchip"></i>
+                    <div class="stat-pill-value" id="statCpu">--%</div>
+                    <div class="stat-pill-label">CPU</div>
+                </div>
+
+                <div class="stat-pill" id="statGpuPill">
+                    <i class="fa-solid fa-display"></i>
+                    <div class="stat-pill-value" id="statGpu">--%</div>
+                    <div class="stat-pill-label">GPU</div>
+                </div>
+
+                <div class="stat-pill">
+                    <i class="fa-solid fa-memory"></i>
+                    <div class="stat-pill-value" id="statRam">--%</div>
+                    <div class="stat-pill-label">RAM</div>
+                </div>
+
+                <div class="stat-pill" id="statTempPill">
+                    <i class="fa-solid fa-temperature-half"></i>
+                    <div class="stat-pill-value" id="statTemp">--°</div>
+                    <div class="stat-pill-label">TEMP</div>
+                </div>
+
+                <div class="stat-pill" id="statBatteryPill">
+                    <i class="fa-solid fa-battery-half"></i>
+                    <div class="stat-pill-value" id="statBattery">--%</div>
+                    <div class="stat-pill-label">BATTERY</div>
+                </div>
+
+                <div class="stat-pill">
+                    <i class="fa-solid fa-wifi"></i>
+                    <div class="stat-pill-value" id="statNet">--</div>
+                    <div class="stat-pill-label">NET KB/S</div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="clock-page" id="clockPage-focus">
+
+            <div class="focus-timer-section">
+                <div class="focus-timer-title">
+                    <i class="fa-solid fa-crosshairs"></i>
+                    FOCUS MODE
+                </div>
+
+                <div class="focus-row">
+                    <span class="focus-status-pill" id="focusStatusPill">OFF</span>
+                    <span class="focus-elapsed" id="focusElapsed">00:00:00</span>
+                </div>
+
+                <div class="timer-btn-row">
+                    <button class="sound-control-btn"
+                            id="focusToggleBtn"
+                            onclick="toggleFocusMode()">
+                        <i class="fa-solid fa-play"></i> START FOCUS
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="clock-page" id="clockPage-timer">
+
+            <div class="focus-timer-section">
+                <div class="focus-timer-title">
+                    <i class="fa-solid fa-hourglass-half"></i>
+                    TIMER
+                </div>
+
+                <div class="timer-display" id="timerDisplay">00:00</div>
+
+                <div class="timer-input-row">
+                    <input type="number"
+                           id="timerMinutesInput"
+                           min="1"
+                           max="180"
+                           placeholder="Minutes"
+                           value="25">
+                </div>
+
+                <div class="timer-btn-row">
+                    <button class="sound-control-btn"
+                            id="timerStartBtn"
+                            onclick="startPauseTimer()">
+                        <i class="fa-solid fa-play"></i> START
+                    </button>
+                    <button class="sound-control-btn"
+                            onclick="resetTimer()">
+                        <i class="fa-solid fa-rotate-left"></i> RESET
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="clock-page" id="clockPage-alarm">
+
+            <div class="focus-timer-section list-page-section">
+                <div class="focus-timer-title">
+                    <i class="fa-solid fa-bell"></i>
+                    ALARMS
+                </div>
+
+                <div class="timer-input-row">
+                    <input type="time"
+                           id="alarmTimeInput">
+                    <button class="sound-control-btn"
+                            onclick="addAlarm()">
+                        <i class="fa-solid fa-plus"></i> ADD
+                    </button>
+                </div>
+
+                <div class="list-page-items" id="alarmList">
+                    <div style="color:#64748b;font-size:9px;">No alarms yet.</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="clock-page" id="clockPage-todo">
+
+            <div class="focus-timer-section list-page-section">
+                <div class="focus-timer-title">
+                    <i class="fa-solid fa-list-check"></i>
+                    TODO LIST
+                </div>
+
+                <div class="timer-input-row">
+                    <input type="text"
+                           id="todoTextInput"
+                           placeholder="Add a task...">
+                    <button class="sound-control-btn"
+                            onclick="addTodo()">
+                        <i class="fa-solid fa-plus"></i> ADD
+                    </button>
+                </div>
+
+                <div class="list-page-items" id="todoList">
+                    <div style="color:#64748b;font-size:9px;">No tasks yet.</div>
+                </div>
+            </div>
+
+        </div>
+
+        <button class="clock-nav-btn clock-nav-right"
+                onclick="clockPageNav(1)">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+
+    </div>
+
+    <div class="clock-page-dots">
+        <span class="clock-dot active" data-page="clock"></span>
+        <span class="clock-dot" data-page="focus"></span>
+        <span class="clock-dot" data-page="timer"></span>
+        <span class="clock-dot" data-page="alarm"></span>
+        <span class="clock-dot" data-page="todo"></span>
+    </div>
+
+</div>
+
+
+</div>
+
 
 <!-- ================= FILE ACTION MODAL ================= -->
 
 <div id="fileActionModal"
      class="modal-overlay">
 
-```
+
 <div class="modal-content file-popup">
 
     <div class="modal-header">
@@ -1632,7 +2454,7 @@
     </div>
 
 </div>
-```
+
 
 </div>
 
@@ -1641,7 +2463,7 @@
 <div id="ioModal"
      class="modal-overlay">
 
-```
+
 <div class="modal-content">
 
     <div class="modal-header">
@@ -1692,7 +2514,7 @@
                 <input
                     type="text"
                     id="typeInput"
-                    placeholder="Type text to send..."
+                    placeholder="Type text / paste link to open on PC..."
                     style="
                         flex:1;
                         background:#0b0e14;
@@ -1717,6 +2539,22 @@
                     ">
 
                     Send
+
+                </button>
+
+                <button
+                    onclick="searchFromKeyboard()"
+                    style="
+                        background:#2a475e;
+                        color:#fff;
+                        border:none;
+                        padding:6px 12px;
+                        border-radius:4px;
+                        font-size:11px;
+                        font-weight:bold;
+                    ">
+
+                    <i class="fa-solid fa-globe"></i> OPEN ON PC
 
                 </button>
 
@@ -1784,11 +2622,84 @@
     </div>
 
 </div>
-```
+
 
 </div>
 
-<!-- ================= FOOTER ================= -->
+<!-- ================= HID + CAPTURE MODAL ================= -->
+<div id="hidModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fa-solid fa-keyboard"></i> HID / CAPTURE</div>
+            <button class="close-modal" onclick="closeHIDModal()">✕ Close</button>
+        </div>
+        <div class="modal-body">
+            <div style="display:flex;gap:4px;border-bottom:1px solid #26384a;margin-bottom:10px;">
+                <button id="hidTabBtn" class="tab-btn active" onclick="switchHIDTab('hid',this)" style="flex:1;"><i class="fa-solid fa-keyboard"></i> HID</button>
+                <button id="captureTabBtn" class="tab-btn" onclick="switchHIDTab('capture',this)" style="flex:1;"><i class="fa-solid fa-video"></i> CAPTURE</button>
+            </div>
+            <div id="hidTabPane">
+
+            <div style="display:flex;gap:6px;margin-bottom:10px;">
+                <button class="sound-control-btn" onclick="setHIDEnabled(true)"><i class="fa-solid fa-toggle-on"></i> ENABLE</button>
+                <button class="sound-control-btn" onclick="setHIDEnabled(false)"><i class="fa-solid fa-toggle-off"></i> DISABLE</button>
+                <button class="sound-control-btn" onclick="loadHIDManager()"><i class="fa-solid fa-rotate"></i> REFRESH</button>
+            </div>
+            <div id="hidStatus" style="font-size:10px;color:#34d399;margin-bottom:10px;">HID status: Loading...</div>
+
+            <div style="font-size:10px;color:#8b929a;margin-bottom:5px;">SCRIPT EDITOR</div>
+            <input id="hidScriptName" type="text" placeholder="Script name"
+                   style="width:100%;background:#0b0e14;border:1px solid #2a475e;color:#fff;padding:7px;border-radius:5px;font-size:10px;margin-bottom:6px;">
+            <textarea id="hidScriptContent" placeholder="Rubber Ducky style HID script\nDELAY 500\nSTRING Hello\nENTER\nCTRL C"
+                      style="width:100%;height:150px;resize:vertical;background:#0b0e14;border:1px solid #2a475e;color:#fff;padding:7px;border-radius:5px;font-size:10px;font-family:Consolas,monospace;"></textarea>
+            <div style="display:flex;gap:6px;margin:7px 0 12px;">
+                <button class="file-action-big open" style="margin:0;padding:8px;" onclick="saveHIDScript()"><i class="fa-solid fa-floppy-disk"></i> SAVE / EDIT</button>
+                <button class="file-action-big download" style="margin:0;padding:8px;" onclick="clearHIDEditor()"><i class="fa-solid fa-eraser"></i> CLEAR</button>
+            </div>
+
+            <div style="font-size:10px;color:#8b929a;margin-bottom:5px;">SAVED SCRIPTS</div>
+            <div id="hidScriptList" style="display:flex;flex-direction:column;gap:6px;">
+                <div style="color:#8b929a;font-size:10px;">Loading...</div>
+            </div>
+
+            
+            </div>
+            <div id="captureTabPane" style="display:none;">
+<div style="margin-top:14px;border-top:1px solid #26384a;padding-top:10px;">
+                <div class="section-title" style="margin:0 0 8px 0;">
+                    <span><i class="fa-solid fa-video"></i> Device Capture</span>
+                </div>
+                <div style="display:flex;gap:6px;margin-bottom:9px;">
+                    <button class="sound-control-btn" onclick="captureSetAll(true)"><i class="fa-solid fa-check-double"></i> ENABLE ALL</button>
+                    <button class="sound-control-btn" onclick="captureSetAll(false)"><i class="fa-solid fa-ban"></i> DISABLE ALL</button>
+                    <button class="sound-control-btn" onclick="loadCaptureDevices()"><i class="fa-solid fa-rotate"></i> REFRESH</button>
+                </div>
+                <div style="font-size:10px;color:#8b929a;margin-bottom:4px;">MICROPHONE DEVICE</div>
+                <select id="captureMicDevice" onchange="saveCaptureDevice('microphone_device',this.value)" style="width:100%;background:#0b0e14;color:#fff;border:1px solid #2a475e;border-radius:5px;padding:7px;font-size:10px;margin-bottom:7px;"></select>
+                <button id="micCaptureBtn" class="file-action-big" style="padding:8px;margin-bottom:8px;" onclick="toggleCaptureDevice('microphone')">MICROPHONE: OFF</button>
+
+                <div style="font-size:10px;color:#8b929a;margin-bottom:4px;">CAMERA DEVICE</div>
+                <select id="captureCameraDevice" onchange="saveCaptureDevice('camera_device',this.value)" style="width:100%;background:#0b0e14;color:#fff;border:1px solid #2a475e;border-radius:5px;padding:7px;font-size:10px;margin-bottom:7px;"></select>
+                <button id="cameraCaptureBtn" class="file-action-big" style="padding:8px;margin-bottom:8px;" onclick="toggleCaptureDevice('camera')">CAMERA: OFF</button>
+                <button id="clickPictureBtn" class="sound-control-btn" style="width:100%;margin-bottom:8px;" onclick="clickPicture()"><i class="fa-solid fa-camera"></i> CLICK PICTURE</button>
+
+                <div style="font-size:10px;color:#8b929a;margin-bottom:4px;">SCREEN / DISPLAY</div>
+                <select id="captureScreenDevice" onchange="saveCaptureDevice('screen_display',this.value)" style="width:100%;background:#0b0e14;color:#fff;border:1px solid #2a475e;border-radius:5px;padding:7px;font-size:10px;margin-bottom:7px;"></select>
+                <button id="screenCaptureBtn" class="file-action-big" style="padding:8px;margin-bottom:8px;" onclick="toggleCaptureDevice('screen')">SCREEN: OFF</button>
+
+                <div id="captureStatus" style="font-size:10px;color:#34d399;margin:5px 0 8px;">Capture status: Loading...</div>
+                <div style="display:flex;gap:6px;">
+                    <button class="file-action-big open" style="margin:0;padding:9px;" onclick="startDeviceCapture()"><i class="fa-solid fa-circle-play"></i> START CAPTURE</button>
+                    <button class="file-action-big" style="margin:0;padding:9px;color:#f87171;" onclick="stopDeviceCapture()"><i class="fa-solid fa-circle-stop"></i> STOP CAPTURE</button>
+                </div>
+            </div>
+        
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- ================= FOOTER ================= -->
 
 <div class="footer">
 
@@ -1814,1404 +2725,2540 @@
 
 </div>
 
-<script>
+<div id="toastContainer"></div>
 
-    const socket = io();
+<script>
+    /* ============================================================
+       ASSHOLE ENGINE - STABLE WEBUI CONTROLLER
+       UI/design intentionally unchanged.
+       ============================================================ */
+
+    const socket = (typeof io === "function")
+        ? io({
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 8000
+        })
+        : null;
 
     let rawMediaData = [];
     let navigationHistory = [];
     let currentMediaMode = "media";
     let selectedFilePath = "";
     let selectedFileName = "";
+    let allApplications = [];
+    let allWorkspaces = [];
+    let rawSoundData = [];
+    let soundNavigationHistory = [];
+    let currentSoundMode = "flat";
+    let soundSearchTerm = "";
+
+    let webuiTimezone = "";
+    let clockIntervalId = null;
+    let statsIntervalId = null;
+
+    let focusActive = false;
+    let focusStartedAt = 0;
+    let focusIntervalId = null;
+
+    let timerTotalSeconds = 25 * 60;
+    let timerRemainingSeconds = 25 * 60;
+    let timerRunning = false;
+    let timerIntervalId = null;
+    let lastSocketWarnAt = 0;
+
+    const $ = id => document.getElementById(id);
+
+    function showModal(id) {
+        const el = $(id);
+        if (!el) return false;
+        el.style.display = "flex";
+        return true;
+    }
+
+    function hideModal(id) {
+        const el = $(id);
+        if (!el) return false;
+        el.style.display = "none";
+        return true;
+    }
+
+    function setText(id, text) {
+        const el = $(id);
+        if (el) el.textContent = text;
+    }
+
+    function escapeHTML(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    async function apiJSON(url, options = {}) {
+        const res = await fetch(url, {
+            ...options,
+            cache: "no-store"
+        });
+
+        let data = {};
+        try {
+            data = await res.json();
+        } catch (_) {}
+
+        if (!res.ok) {
+            throw new Error(
+                data.message ||
+                data.error ||
+                `HTTP ${res.status}`
+            );
+        }
+
+        return data;
+    }
+
+    /* ================= TOAST ================= */
+
+    function showToast(message, type) {
+        const container = $("toastContainer");
+        if (!container) return;
+
+        const el = document.createElement("div");
+        el.className = "toast" + (type === "success" ? " success" : "");
+        el.textContent = message;
+        container.appendChild(el);
+
+        requestAnimationFrame(() => el.classList.add("show"));
+
+        setTimeout(() => {
+            el.classList.remove("show");
+            setTimeout(() => el.remove(), 300);
+        }, 2600);
+    }
 
     /* ================= SOCKET ================= */
 
-    function sendMedia(action) {
-
-        socket.emit("media_control", {
-            action: action
+    if (socket) {
+        socket.on("connect_error", () => {
+            const now = Date.now();
+            if (now - lastSocketWarnAt > 4000) {
+                lastSocketWarnAt = now;
+                showToast("Live connection unavailable — retrying in background.");
+            }
         });
+    }
 
+    function socketEmit(event, payload) {
+        if (socket && socket.connected) {
+            socket.emit(event, payload);
+            return true;
+        }
+
+        const now = Date.now();
+        if (now - lastSocketWarnAt > 4000) {
+            lastSocketWarnAt = now;
+            showToast("Connection lost. Reconnecting...");
+        }
+
+        socket?.connect();
+        return false;
+    }
+
+    function sendMedia(action) {
+        socketEmit("media_control", { action });
     }
 
     function confirmPower(action) {
-
         const messages = {
-
             close_app:
-                "Kya aap Active App ko Close karna chahte hain (Alt+F4)?",
-
+                "Close the active application? (Alt+F4)",
             restart_pc:
-                "Kya aap PC ko Restart karna chahte hain?",
-
+                "Restart the PC?",
             shutdown_pc:
-                "Kya aap PC ko Shutdown karna chahte hain?"
-
+                "Shut down the PC?"
         };
 
         if (confirm(messages[action] || "Confirm Action?")) {
             sendMedia(action);
         }
-
     }
 
-    /* ================= ICON ================= */
+    /* ================= ICON / FILE ================= */
 
     function getFileIconHTML(filename, isDir = false) {
-
         if (isDir) {
-
             return '<i class="fa-solid fa-folder" style="color:#facc15;"></i>';
-
         }
 
         const ext =
-            (filename.split(".").pop() || "").toLowerCase();
+            (String(filename).split(".").pop() || "").toLowerCase();
 
-        if (
-            ["mp4","mkv","avi","mov","wmv","webm","m4v"]
-            .includes(ext)
-        ) {
-
+        if (["mp4","mkv","avi","mov","wmv","webm","m4v"].includes(ext)) {
             return '<i class="fa-solid fa-file-video" style="color:#38bdf8;"></i>';
-
         }
 
-        if (
-            ["mp3","wav","flac","m4a","aac","ogg","wma","opus"]
-            .includes(ext)
-        ) {
-
+        if (["mp3","wav","flac","m4a","aac","ogg","wma","opus"].includes(ext)) {
             return '<i class="fa-solid fa-file-audio" style="color:#a855f7;"></i>';
-
         }
 
-        if (
-            ["jpg","jpeg","png","gif","webp","bmp","svg"]
-            .includes(ext)
-        ) {
-
+        if (["jpg","jpeg","png","gif","webp","bmp","svg"].includes(ext)) {
             return '<i class="fa-solid fa-file-image" style="color:#f43f5e;"></i>';
-
         }
 
         if (["ppt","pptx"].includes(ext)) {
-
             return '<i class="fa-solid fa-file-powerpoint" style="color:#f97316;"></i>';
-
         }
 
         if (["doc","docx"].includes(ext)) {
-
             return '<i class="fa-solid fa-file-word" style="color:#60a5fa;"></i>';
-
         }
 
         if (["xls","xlsx","csv"].includes(ext)) {
-
             return '<i class="fa-solid fa-file-excel" style="color:#22c55e;"></i>';
-
         }
 
         if (ext === "pdf") {
-
             return '<i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i>';
-
         }
 
         if (["zip","rar","7z","tar","gz"].includes(ext)) {
-
             return '<i class="fa-solid fa-file-zipper" style="color:#eab308;"></i>';
-
         }
 
         if (["exe","msi","bat","cmd","ps1"].includes(ext)) {
-
             return '<i class="fa-solid fa-gears" style="color:#94a3b8;"></i>';
-
         }
 
-        if (
-            ["txt","log","ini","json","xml","yaml","yml"]
-            .includes(ext)
-        ) {
-
+        if (["txt","log","ini","json","xml","yaml","yml"].includes(ext)) {
             return '<i class="fa-solid fa-file-lines" style="color:#cbd5e1;"></i>';
-
         }
 
         return '<i class="fa-solid fa-file" style="color:#94a3b8;"></i>';
-
     }
 
     function formatBytes(bytes) {
-
-        if (!bytes || bytes < 0)
-            return "";
+        const n0 = Number(bytes);
+        if (!Number.isFinite(n0) || n0 < 0) return "";
 
         const units = ["B","KB","MB","GB","TB"];
-
+        let n = n0;
         let i = 0;
-        let n = bytes;
 
-        while (
-            n >= 1024 &&
-            i < units.length - 1
-        ) {
-
+        while (n >= 1024 && i < units.length - 1) {
             n /= 1024;
             i++;
-
         }
 
         return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
-
     }
 
     /* ================= SHORTCUTS ================= */
 
     async function loadCustomShortcuts() {
+        const container = $("customShortcutList");
+        if (!container) return;
 
         try {
-
-            const res =
-                await fetch("/api/fetch_shortcuts");
-
-            const shortcuts =
-                await res.json();
-
-            const container =
-                document.getElementById("customShortcutList");
-
+            const shortcuts = await apiJSON("/api/fetch_shortcuts");
             container.innerHTML = "";
 
-            if (!shortcuts.length) {
-
+            if (!Array.isArray(shortcuts) || !shortcuts.length) {
                 container.innerHTML =
                     '<div style="color:#8b929a;font-size:11px;padding:5px;">No active shortcuts configured.</div>';
-
                 return;
-
             }
 
             shortcuts.forEach(sc => {
-
-                const btn =
-                    document.createElement("button");
-
+                const btn = document.createElement("button");
                 btn.className = "deck-btn";
 
-                btn.innerHTML = `
+                const icon = document.createElement("span");
+                icon.style.fontSize = "16px";
+                icon.textContent = sc.icon || "⚡";
 
-                    <span style="font-size:16px;">
-                        ${sc.icon || "⚡"}
-                    </span>
+                const name = document.createElement("span");
+                name.style.fontSize = "9px";
+                name.textContent = sc.name || "Shortcut";
 
-                    <span style="font-size:9px;">
-                        ${sc.name}
-                    </span>
-
-                `;
-
-                btn.onclick = () =>
-                    sendMedia(sc.name);
+                btn.append(icon, name);
+                btn.onclick = () => sendMedia(sc.name);
 
                 container.appendChild(btn);
-
             });
-
-        } catch(e) {
-
-            console.error(e);
-
+        } catch (e) {
+            console.error("Shortcut loading error:", e);
+            container.innerHTML =
+                '<div style="color:#f87171;font-size:10px;padding:5px;">Could not load shortcuts.</div>';
         }
-
     }
 
     /* ================= MEDIA SOURCES ================= */
 
     async function loadMediaSources() {
+        const select = $("mediaSourceSelect");
+        if (!select) return;
 
         try {
-
-            const res =
-                await fetch("/api/media_sources");
-
-            const sources =
-                await res.json();
-
-            const select =
-                document.getElementById("mediaSourceSelect");
-
-            const current =
-                select.value;
+            const sources = await apiJSON("/api/media_sources");
+            const current = select.value;
 
             select.innerHTML =
                 '<option value="">All configured folders</option>';
 
-            sources.forEach(source => {
-
-                const option =
-                    document.createElement("option");
-
-                option.value = source.id;
-                option.textContent = source.name;
-
+            (Array.isArray(sources) ? sources : []).forEach(source => {
+                const option = document.createElement("option");
+                option.value = source.id ?? "";
+                option.textContent = source.name || source.path || "Folder";
                 select.appendChild(option);
-
             });
 
-            if (
-                [...select.options]
-                    .some(o => o.value === current)
-            ) {
-
+            if ([...select.options].some(o => o.value === current)) {
                 select.value = current;
-
             }
-
-        } catch(e) {
-
-            console.error(e);
-
+        } catch (e) {
+            console.error("Media sources error:", e);
         }
-
     }
 
-    /* ================= MEDIA TOGGLE ================= */
+    /* ================= MEDIA TOGGLE / EXPLORER ================= */
 
     function toggleMediaMode() {
-
         currentMediaMode =
-            currentMediaMode === "media"
-                ? "all"
-                : "media";
+            currentMediaMode === "media" ? "all" : "media";
 
-        const toggle =
-            document.getElementById("fileModeToggle");
-
-        const label =
-            document.getElementById("toggleLabel");
-
-        const modeLabel =
-            document.getElementById("explorerModeLabel");
+        const toggle = $("fileModeToggle");
+        const label = $("toggleLabel");
+        const modeLabel = $("explorerModeLabel");
 
         if (currentMediaMode === "all") {
-
-            toggle.classList.add("all");
-
-            label.innerText = "ALL";
-
-            modeLabel.innerText = "ALL FILES";
-
+            toggle?.classList.add("all");
+            if (label) label.textContent = "ALL";
+            if (modeLabel) modeLabel.textContent = "ALL FILES";
         } else {
-
-            toggle.classList.remove("all");
-
-            label.innerText = "MEDIA";
-
-            modeLabel.innerText = "MEDIA FILES";
-
+            toggle?.classList.remove("all");
+            if (label) label.textContent = "MEDIA";
+            if (modeLabel) modeLabel.textContent = "MEDIA FILES";
         }
 
         navigationHistory = [];
-
         loadMedia();
-
     }
 
     async function loadMedia() {
+        const select = $("mediaSourceSelect");
+        const grid = $("mediaGrid");
+        if (!select || !grid) return;
 
         try {
+            const params = new URLSearchParams();
+            params.set("mode", currentMediaMode);
 
-            const source =
-                document.getElementById(
-                    "mediaSourceSelect"
-                ).value;
-
-            const params =
-                new URLSearchParams();
-
-            params.set(
-                "mode",
-                currentMediaMode
-            );
-
-            if (source !== "") {
-                params.set("source", source);
+            if (select.value !== "") {
+                params.set("source", select.value);
             }
 
-            const res =
-                await fetch(
-                    "/api/media_tree?" +
-                    params.toString()
-                );
+            const data = await apiJSON(
+                "/api/media_tree?" + params.toString()
+            );
 
             rawMediaData =
-                await res.json();
+                Array.isArray(data) ? data : (data.items || []);
 
             navigationHistory = [];
-
-            renderFolder(
-                rawMediaData,
-                "File Explorer",
-                false
-            );
-
-        } catch(e) {
-
-            console.error(
-                "Media load error:",
-                e
-            );
-
+            renderFolder(rawMediaData, "File Explorer", false);
+        } catch (e) {
+            console.error("Media load error:", e);
+            grid.innerHTML =
+                '<div style="color:#f87171;font-size:10px;padding:6px;">Could not load media files.</div>';
         }
-
     }
 
-    /* ================= FILE EXPLORER ================= */
+    function renderFolder(items, folderName, isSub = true) {
+        const grid = $("mediaGrid");
+        const nav = $("folderNav");
+        const pathSpan = $("currentFolderPath");
 
-    function renderFolder(
-        items,
-        folderName,
-        isSub = true
-    ) {
-
-        const grid =
-            document.getElementById(
-                "mediaGrid"
-            );
-
-        const nav =
-            document.getElementById(
-                "folderNav"
-            );
-
-        const pathSpan =
-            document.getElementById(
-                "currentFolderPath"
-            );
+        if (!grid) return;
 
         grid.innerHTML = "";
 
         if (isSub) {
-
-            nav.style.display = "flex";
-
-            pathSpan.innerText =
-                folderName;
-
+            if (nav) nav.style.display = "flex";
+            if (pathSpan) pathSpan.textContent = folderName;
         } else {
-
-            nav.style.display = "none";
-
+            if (nav) nav.style.display = "none";
         }
 
-        if (
-            !items ||
-            items.length === 0
-        ) {
-
+        if (!Array.isArray(items) || !items.length) {
             grid.innerHTML = `
-
                 <div style="color:#8b929a;font-size:11px;padding:6px;">
-
-                    ${
-                        currentMediaMode === "all"
+                    ${currentMediaMode === "all"
                         ? "Folder is Empty."
-                        : "No supported media files found."
-                    }
-
+                        : "No supported media files found."}
                 </div>
-
             `;
-
             return;
-
         }
 
         items.forEach(item => {
-
-            const tile =
-                document.createElement("div");
-
+            const tile = document.createElement("div");
             tile.className = "tile";
 
-            /* FOLDER */
-
             if (item.type === "folder") {
-
                 tile.innerHTML = `
-
                     <div class="tile-icon">
-
                         ${getFileIconHTML("", true)}
-
                     </div>
-
-                    <div>
-                        ${item.name}
-                    </div>
-
+                    <div>${escapeHTML(item.name || "Folder")}</div>
                 `;
 
                 tile.onclick = () => {
-
                     navigationHistory.push({
-
-                        items: items,
+                        items,
                         name: folderName,
-                        isSub: isSub
-
+                        isSub
                     });
 
                     renderFolder(
-                        item.children,
-                        item.name,
+                        item.children || [],
+                        item.name || "Folder",
                         true
                     );
 
-                    document
-                        .querySelector(".media-container")
-                        .scrollTop = 0;
-
+                    document.querySelector(".media-container")?.scrollTo({
+                        top: 0,
+                        behavior: "auto"
+                    });
                 };
-
-            /* FILE */
-
             } else {
+                const name = item.name || "File";
 
                 tile.innerHTML = `
-
                     <div class="tile-icon">
-
-                        ${getFileIconHTML(item.name)}
-
+                        ${getFileIconHTML(name)}
                     </div>
-
-                    <div title="${item.name}">
-
-                        ${item.name}
-
+                    <div title="${escapeHTML(name)}">
+                        ${escapeHTML(name)}
                     </div>
-
                     <div style="
                         font-size:8px;
                         color:#64748b;
                         margin-top:2px;
                     ">
-
                         ${formatBytes(item.size)}
-
                     </div>
-
                 `;
 
                 tile.onclick = () => {
-
                     openFileActionModal(
-                        item.path,
-                        item.name
+                        item.path || "",
+                        name
                     );
-
                 };
-
             }
 
             grid.appendChild(tile);
-
         });
-
     }
 
     function navigateBack() {
+        if (!navigationHistory.length) return;
 
-        if (
-            navigationHistory.length > 0
-        ) {
+        const prev = navigationHistory.pop();
 
-            const prev =
-                navigationHistory.pop();
+        renderFolder(
+            prev.items,
+            prev.name,
+            prev.isSub
+        );
 
-            renderFolder(
-                prev.items,
-                prev.name,
-                prev.isSub
-            );
-
-            document
-                .querySelector(".media-container")
-                .scrollTop = 0;
-
-        }
-
+        document.querySelector(".media-container")?.scrollTo({
+            top: 0,
+            behavior: "auto"
+        });
     }
 
     /* ================= FILE ACTION POPUP ================= */
 
-    function openFileActionModal(
-        path,
-        name
-    ) {
+    function openFileActionModal(path, name) {
+        selectedFilePath = path || "";
+        selectedFileName = name || "";
 
-        selectedFilePath = path;
-        selectedFileName = name;
+        const label = $("selectedFileName");
+        if (label) {
+            label.innerHTML = `
+                <i class="fa-solid fa-file"></i>
+                <br><br>
+                ${escapeHTML(selectedFileName)}
+            `;
+        }
 
-        document.getElementById(
-            "selectedFileName"
-        ).innerHTML = `
-
-            <i class="fa-solid fa-file"></i>
-
-            <br><br>
-
-            ${name}
-
-        `;
-
-        document.getElementById(
-            "fileActionModal"
-        ).style.display = "flex";
-
+        showModal("fileActionModal");
     }
 
     function closeFileActionModal() {
-
-        document.getElementById(
-            "fileActionModal"
-        ).style.display = "none";
-
+        hideModal("fileActionModal");
     }
 
-    function openSelectedFile() {
+    async function openSelectedFile() {
+        if (!selectedFilePath) return;
 
-        if (!selectedFilePath)
-            return;
-
-        openRemoteFile(
-            selectedFilePath
-        );
+        try {
+            await apiJSON("/api/open_file", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({path: selectedFilePath})
+            });
+        } catch (e) {
+            alert(e.message || "Could not open file.");
+        }
 
         closeFileActionModal();
-
     }
 
     function downloadSelectedFile() {
-
-        if (!selectedFilePath)
-            return;
-
-        downloadRemoteFile(
-            selectedFilePath
-        );
-
-        closeFileActionModal();
-
-    }
-
-    function openRemoteFile(path) {
-
-        fetch("/api/open_file", {
-
-            method: "POST",
-
-            headers: {
-                "Content-Type":
-                    "application/json"
-            },
-
-            body: JSON.stringify({
-                path: path
-            })
-
-        })
-
-        .then(r => r.json())
-
-        .then(data => {
-
-            if (
-                data.status !== "success"
-            ) {
-
-                alert(
-                    data.message ||
-                    "Could not open file."
-                );
-
-            }
-
-        })
-
-        .catch(() => {
-
-            alert(
-                "Could not open file."
-            );
-
-        });
-
-    }
-
-    function downloadRemoteFile(path) {
+        if (!selectedFilePath) return;
 
         const url =
             "/api/download_file?path=" +
-            encodeURIComponent(path);
+            encodeURIComponent(selectedFilePath);
 
-        const a =
-            document.createElement("a");
-
+        const a = document.createElement("a");
         a.href = url;
         a.download = "";
-
         document.body.appendChild(a);
-
         a.click();
-
         a.remove();
 
+        closeFileActionModal();
+    }
+
+    async function openRemoteFile(path) {
+        if (!path) return;
+
+        try {
+            await apiJSON("/api/open_file", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({path})
+            });
+        } catch (e) {
+            alert(e.message || "Could not open file.");
+        }
+    }
+
+    function downloadRemoteFile(path) {
+        if (!path) return;
+
+        const a = document.createElement("a");
+        a.href =
+            "/api/download_file?path=" +
+            encodeURIComponent(path);
+        a.download = "";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
     }
 
     /* ================= APPLICATIONS ================= */
 
-    let allApplications = [];
-
     async function loadApps() {
-
         try {
-
-            const res =
-                await fetch(
-                    "/api/fetch_apps"
-                );
-
-            const apps =
-                await res.json();
-
-            allApplications = apps;
-
-            renderTopApps(apps);
-            renderAllApps(apps);
-
-        } catch(e) {
-
-            console.error(
-                "App loading error:",
-                e
-            );
-
+            const apps = await apiJSON("/api/fetch_apps");
+            allApplications =
+                Array.isArray(apps) ? apps : (apps.items || []);
+        } catch (e) {
+            console.error("App loading error:", e);
         }
 
+        await loadWorkspaces();
+    }
+
+    /* ================= WORKSPACES (launch-only, managed from the main app) ================= */
+
+    async function loadWorkspaces() {
+        try {
+            const data = await apiJSON("/api/fetch_workspaces");
+            allWorkspaces = Array.isArray(data) ? data : [];
+        } catch (e) {
+            console.error("Workspace loading error:", e);
+            allWorkspaces = [];
+        }
+
+        renderTopApps(allApplications);
+        renderAllApps(allApplications);
+    }
+
+    async function launchWorkspace(name) {
+        try {
+            const res = await apiJSON("/api/launch_workspace", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({ name })
+            });
+            showToast(
+                `Opened ${res.launched || 0} item(s) from "${name}".`,
+                "success"
+            );
+        } catch (e) {
+            showToast(e.message || "Could not launch workspace.");
+        }
     }
 
     function getAppIcon(app) {
-
-        if (app.is_link) {
-
+        if (app?.is_link) {
             return `
-
                 <i class="fa-solid fa-globe"
-                   style="color:#38bdf8;">
-                </i>
-
+                   style="color:#38bdf8;"></i>
             `;
-
         }
 
         return `
-
             <i class="fa-solid fa-laptop"
-               style="color:#4ade80;">
-            </i>
-
+               style="color:#4ade80;"></i>
         `;
-
     }
 
-    function launchApp(app) {
-
-        fetch(
-            "/api/launch_app",
-            {
+    async function launchApp(app) {
+        try {
+            await apiJSON("/api/launch_app", {
                 method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
+                headers: {"Content-Type":"application/json"},
                 body: JSON.stringify({
-
-                    path: app.path,
-
-                    is_link:
-                        app.is_link
-
+                    path: app?.path || "",
+                    is_link: !!app?.is_link
                 })
-
-            }
-        );
-
+            });
+        } catch (e) {
+            alert(e.message || "Could not launch application.");
+        }
     }
-
-    /* TOP 10 */
 
     function renderTopApps(apps) {
-
-        const container =
-            document.getElementById(
-                "appTopList"
-            );
+        const container = $("appTopList");
+        if (!container) return;
 
         container.innerHTML = "";
 
-        const top10 =
-            apps.slice(0, 10);
+        const top10 = (apps || []).slice(0, 10);
+        const pinnedWorkspaces = (allWorkspaces || []).filter(w => w.enabled);
 
-        if (!top10.length) {
-
+        if (!top10.length && !pinnedWorkspaces.length) {
             container.innerHTML = `
-
                 <div style="
                     color:#8b929a;
                     font-size:10px;
                     padding:5px;
                 ">
-
                     No applications configured.
-
                 </div>
-
             `;
-
             return;
-
         }
 
         top10.forEach(app => {
-
-            const btn =
-                document.createElement(
-                    "div"
-                );
-
-            btn.className =
-                "app-icon-btn";
+            const btn = document.createElement("div");
+            btn.className = "app-icon-btn";
 
             btn.innerHTML = `
-
                 ${getAppIcon(app)}
-
-                <div class="app-icon-name">
-
-                    ${app.name}
-
-                </div>
-
+                <div class="app-icon-name"></div>
             `;
 
-            btn.onclick = () =>
-                launchApp(app);
+            const name = btn.querySelector(".app-icon-name");
+            if (name) name.textContent = app.name || "Application";
 
+            btn.onclick = () => launchApp(app);
             container.appendChild(btn);
-
         });
 
+        pinnedWorkspaces.forEach(ws => {
+            const btn = document.createElement("div");
+            btn.className = "app-icon-btn";
+
+            btn.innerHTML = `
+                <i class="fa-solid fa-folder-tree" style="color:#fbbf24;"></i>
+                <div class="app-icon-name"></div>
+            `;
+
+            const name = btn.querySelector(".app-icon-name");
+            if (name) name.textContent = ws.name || "Workspace";
+
+            btn.onclick = () => launchWorkspace(ws.name);
+            container.appendChild(btn);
+        });
     }
 
-    /* ALL APPS */
-
     function renderAllApps(apps) {
-
-        const container =
-            document.getElementById(
-                "allAppsGrid"
-            );
+        const container = $("allAppsGrid");
+        if (!container) return;
 
         container.innerHTML = "";
 
+        const pinnedWorkspaces = (allWorkspaces || []).filter(w => w.enabled);
+
+        if (!apps?.length && !pinnedWorkspaces.length) {
+            container.innerHTML =
+                '<div style="color:#8b929a;font-size:10px;">No applications configured.</div>';
+            return;
+        }
+
         apps.forEach(app => {
-
-            const card =
-                document.createElement(
-                    "div"
-                );
-
-            card.className =
-                "all-app-card";
+            const card = document.createElement("div");
+            card.className = "all-app-card";
 
             card.innerHTML = `
-
                 ${getAppIcon(app)}
-
-                <span>
-                    ${app.name}
-                </span>
-
+                <span></span>
             `;
 
-            card.onclick = () =>
-                launchApp(app);
+            const label = card.querySelector("span");
+            if (label) label.textContent = app.name || "Application";
 
+            card.onclick = () => launchApp(app);
             container.appendChild(card);
-
         });
 
+        pinnedWorkspaces.forEach(ws => {
+            const card = document.createElement("div");
+            card.className = "all-app-card";
+
+            card.innerHTML = `
+                <i class="fa-solid fa-folder-tree" style="color:#fbbf24;"></i>
+                <span></span>
+            `;
+
+            const label = card.querySelector("span");
+            if (label) label.textContent = ws.name || "Workspace";
+
+            card.onclick = () => launchWorkspace(ws.name);
+            container.appendChild(card);
+        });
     }
 
     function openAppsModal() {
-
-        document.getElementById(
-            "appsModal"
-        ).style.display = "flex";
-
+        showModal("appsModal");
+        if (!$("allAppsGrid")?.children.length) {
+            loadApps();
+        } else {
+            loadWorkspaces();
+        }
     }
 
     function closeAppsModal() {
-
-        document.getElementById(
-            "appsModal"
-        ).style.display = "none";
-
+        hideModal("appsModal");
     }
 
     /* ================= SOUNDBOARD ================= */
 
     async function loadSoundboard() {
+        const container = $("soundGrid");
+        if (!container) return;
 
         try {
-
-            const res =
-                await fetch(
-                    "/api/soundboard_tree"
-                );
-
-            const data =
-                await res.json();
-
-            const container =
-                document.getElementById(
-                    "soundGrid"
-                );
-
-            container.innerHTML = "";
+            const data = await apiJSON("/api/soundboard_tree");
 
             if (data.error) {
-
                 container.innerHTML = `
-
-                    <div style="
-                        color:#f87171;
-                        font-size:10px;
-                    ">
-
-                        ${data.error}
-
+                    <div style="color:#f87171;font-size:10px;">
+                        ${escapeHTML(data.error)}
                     </div>
-
                 `;
-
                 return;
-
             }
 
-            const audioFiles = [];
+            rawSoundData = data.items || [];
+            soundNavigationHistory = [];
+            renderSoundboard();
+        } catch (e) {
+            console.error("Soundboard load error:", e);
+            container.innerHTML =
+                '<div style="color:#f87171;font-size:10px;">Could not load soundboard.</div>';
+        }
+    }
 
-            function collect(
-                items,
-                prefix = ""
-            ) {
+    function flattenSoundTree(items, prefix = "") {
+        const out = [];
+        (items || []).forEach(item => {
+            if (item.type === "folder") {
+                out.push(...flattenSoundTree(
+                    item.children,
+                    prefix + (item.name || "") + "/"
+                ));
+            } else {
+                out.push({
+                    name: prefix + (item.name || ""),
+                    path: item.path
+                });
+            }
+        });
+        return out;
+    }
 
-                (items || [])
-                    .forEach(item => {
+    function renderSoundboard() {
+        if (soundSearchTerm.trim()) {
+            renderSoundSearchResults(soundSearchTerm.trim());
+        } else if (currentSoundMode === "explorer") {
+            renderSoundFolder(rawSoundData, "Soundboard", false);
+        } else {
+            renderSoundFlat(rawSoundData);
+        }
+    }
 
-                        if (
-                            item.type ===
-                            "folder"
-                        ) {
+    function filterSoundboard(value) {
+        soundSearchTerm = value || "";
+        renderSoundboard();
+    }
 
-                            collect(
-                                item.children,
-                                prefix +
-                                item.name +
-                                "/"
-                            );
+    function renderSoundSearchResults(term) {
+        const container = $("soundGrid");
+        const nav = $("soundFolderNav");
+        if (!container) return;
 
-                        } else {
+        if (nav) nav.style.display = "none";
+        container.innerHTML = "";
 
-                            audioFiles.push({
+        const query = term.toLowerCase();
+        const matches = flattenSoundTree(rawSoundData)
+            .filter(f => f.name.toLowerCase().includes(query));
 
-                                name:
-                                    prefix +
-                                    item.name,
+        if (!matches.length) {
+            container.innerHTML =
+                '<div style="color:#8b929a;font-size:10px;">No sounds match your search.</div>';
+            return;
+        }
 
-                                path:
-                                    item.path
+        matches.forEach(file => {
+            container.appendChild(buildSoundFileCard(file.name, file.path));
+        });
+    }
 
-                            });
+    function buildSoundFileCard(name, path) {
+        const card = document.createElement("div");
+        card.className = "sound-card";
 
-                        }
+        const label = document.createElement("div");
+        label.className = "sound-name";
+        label.textContent = name;
 
+        const btn = document.createElement("button");
+        btn.className = "sound-play-btn";
+        btn.innerHTML = '<i class="fa-solid fa-play"></i> PLAY ON PC';
+        btn.onclick = () => playPcSound(path, name);
+
+        card.append(label, btn);
+        return card;
+    }
+
+    /* ---- FLAT VIEW (unchanged default look) ---- */
+
+    function renderSoundFlat(items) {
+        const container = $("soundGrid");
+        const nav = $("soundFolderNav");
+        if (!container) return;
+
+        if (nav) nav.style.display = "none";
+        container.innerHTML = "";
+
+        const audioFiles = flattenSoundTree(items);
+
+        if (!audioFiles.length) {
+            container.innerHTML =
+                '<div style="color:#8b929a;font-size:10px;">No audio files found.</div>';
+            return;
+        }
+
+        audioFiles.forEach(file => {
+            container.appendChild(buildSoundFileCard(file.name, file.path));
+        });
+    }
+
+    /* ---- EXPLORER VIEW (folder tree, like the media file explorer) ---- */
+
+    function renderSoundFolder(items, folderName, isSub = true) {
+        const container = $("soundGrid");
+        const nav = $("soundFolderNav");
+        const pathSpan = $("soundCurrentFolderPath");
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        if (isSub) {
+            if (nav) nav.style.display = "flex";
+            if (pathSpan) pathSpan.textContent = folderName;
+        } else if (nav) {
+            nav.style.display = "none";
+        }
+
+        if (!Array.isArray(items) || !items.length) {
+            container.innerHTML =
+                '<div style="color:#8b929a;font-size:10px;">Folder is empty.</div>';
+            return;
+        }
+
+        items.forEach(item => {
+            if (item.type === "folder") {
+                const card = document.createElement("div");
+                card.className = "sound-card sound-folder-card";
+                card.innerHTML = `
+                    <i class="fa-solid fa-folder"
+                       style="font-size:20px;color:#fbbf24;"></i>
+                    <div class="sound-name"></div>
+                `;
+                card.querySelector(".sound-name").textContent =
+                    item.name || "Folder";
+
+                card.onclick = () => {
+                    soundNavigationHistory.push({
+                        items,
+                        name: folderName,
+                        isSub
                     });
 
-            }
-
-            collect(data.items);
-
-            if (!audioFiles.length) {
-
-                container.innerHTML = `
-
-                    <div style="
-                        color:#8b929a;
-                        font-size:10px;
-                    ">
-
-                        No audio files found.
-
-                    </div>
-
-                `;
-
-                return;
-
-            }
-
-            audioFiles.forEach(file => {
-
-                const card =
-                    document.createElement(
-                        "div"
+                    renderSoundFolder(
+                        item.children || [],
+                        item.name || "Folder",
+                        true
                     );
-
-                card.className =
-                    "sound-card";
-
-                const name =
-                    document.createElement(
-                        "div"
-                    );
-
-                name.className =
-                    "sound-name";
-
-                name.innerText =
-                    file.name;
-
-                const btn =
-                    document.createElement(
-                        "button"
-                    );
-
-                btn.className =
-                    "sound-play-btn";
-
-                btn.innerHTML = `
-
-                    <i class="fa-solid fa-play"></i>
-                    PLAY ON PC
-
-                `;
-
-                btn.onclick = () =>
-                    playPcSound(
-                        file.path,
-                        file.name
-                    );
-
-                card.appendChild(name);
-                card.appendChild(btn);
+                };
 
                 container.appendChild(card);
-
-            });
-
-        } catch(e) {
-
-            console.error(
-                "Soundboard load error:",
-                e
-            );
-
-        }
-
-    }
-
-    function playPcSound(
-        path,
-        displayName
-    ) {
-
-        socket.emit(
-            "soundboard_play",
-            {
-                path: path
-            }
-        );
-
-        document.getElementById(
-            "playerCurrent"
-        ).innerText =
-            "Playing on PC: " +
-            displayName;
-
-    }
-
-    function controlSoundPlayer(
-        action
-    ) {
-
-        socket.emit(
-            "soundboard_control",
-            {
-                action: action
-            }
-        );
-
-    }
-
-    socket.on(
-        "soundboard_status",
-        data => {
-
-            const label =
-                document.getElementById(
-                    "playerCurrent"
-                );
-
-            if (!label)
-                return;
-
-            if (
-                data.status ===
-                "playing"
-            ) {
-
-                label.innerText =
-                    "Playing on PC: " +
-                    (data.path || "")
-                    .split(/[\/\\]/)
-                    .pop();
-
-            } else if (
-                data.status ===
-                "error"
-            ) {
-
-                label.innerText =
-                    "Player error: " +
-                    (
-                        data.message ||
-                        "Unknown error"
-                    );
-
             } else {
-
-                label.innerText =
-                    data.message ||
-                    "Player ready";
-
+                container.appendChild(
+                    buildSoundFileCard(item.name || "File", item.path)
+                );
             }
+        });
+    }
 
+    function navigateSoundBack() {
+        if (!soundNavigationHistory.length) return;
+
+        const prev = soundNavigationHistory.pop();
+        renderSoundFolder(prev.items, prev.name, prev.isSub);
+    }
+
+    function toggleSoundboardMode() {
+        currentSoundMode =
+            currentSoundMode === "flat" ? "explorer" : "flat";
+
+        const toggle = $("soundModeToggle");
+        const label = $("soundToggleLabel");
+
+        if (currentSoundMode === "explorer") {
+            toggle?.classList.add("all");
+            if (label) label.textContent = "EXPLORER";
+        } else {
+            toggle?.classList.remove("all");
+            if (label) label.textContent = "FLAT";
         }
-    );
+
+        soundNavigationHistory = [];
+        renderSoundboard();
+    }
+
+    /* ---- PLAYBACK (HTTP API primary — works even if the live socket
+       connection is down; socket is used only as a bonus status sync) ---- */
+
+    async function playPcSound(path, displayName) {
+        setText(
+            "playerCurrent",
+            "Playing on PC: " + (displayName || "")
+        );
+
+        try {
+            await apiJSON("/api/soundboard_play", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({ path })
+            });
+        } catch (e) {
+            setText(
+                "playerCurrent",
+                "Player error: " + (e.message || "Unknown error")
+            );
+            showToast(e.message || "Could not play sound.");
+        }
+    }
+
+    async function controlSoundPlayer(action) {
+        try {
+            await apiJSON("/api/soundboard_control", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({ action })
+            });
+        } catch (e) {
+            showToast(e.message || "Player action failed.");
+        }
+    }
+
+    if (socket) {
+        socket.on("soundboard_status", data => {
+            const label = $("playerCurrent");
+            if (!label) return;
+
+            if (data?.status === "playing") {
+                label.textContent =
+                    "Playing on PC: " +
+                    String(data.path || "")
+                        .split(/[\/\\]/)
+                        .pop();
+            } else if (data?.status === "error") {
+                label.textContent =
+                    "Player error: " +
+                    (data.message || "Unknown error");
+            } else {
+                label.textContent =
+                    data?.message || "Player ready";
+            }
+        });
+    }
 
     function openSoundboardModal() {
-
-        document.getElementById(
-            "soundboardModal"
-        ).style.display = "flex";
-
+        showModal("soundboardModal");
+        loadSoundboard();
     }
 
     function closeSoundboardModal() {
+        hideModal("soundboardModal");
+    }
 
-        document.getElementById(
-            "soundboardModal"
-        ).style.display = "none";
+    /* ================= CLOCK / FOCUS MODE / TIMER ================= */
 
+    async function loadWebUISettings() {
+        try {
+            const data = await apiJSON("/api/webui_settings");
+            webuiTimezone = data?.timezone || "";
+        } catch (e) {
+            console.error("WebUI settings load error:", e);
+            webuiTimezone = "";
+        }
+
+        const tzLabel = $("liveClockTz");
+        if (tzLabel) {
+            tzLabel.textContent = webuiTimezone || "Auto (Local)";
+        }
+    }
+
+    function setHandRotation(id, deg) {
+        const el = $(id);
+        if (el) el.setAttribute("transform", `rotate(${deg} 100 100)`);
+    }
+
+    function tickLiveClock() {
+        const dateEl = $("liveClockDate");
+        if (!dateEl) return;
+
+        const now = new Date();
+        const options = webuiTimezone ? { timeZone: webuiTimezone } : {};
+
+        let hours, minutes, seconds, dateText;
+
+        try {
+            const fmt = new Intl.DateTimeFormat("en-US", {
+                ...options,
+                hour12: false,
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            });
+            const parts = fmt.formatToParts(now);
+            const get = (type) =>
+                parseInt(parts.find(p => p.type === type)?.value || "0", 10);
+
+            hours = get("hour") % 24;
+            minutes = get("minute");
+            seconds = get("second");
+
+            dateText = now.toLocaleDateString("en-US", {
+                ...options,
+                weekday: "short",
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+            });
+        } catch (e) {
+            // Invalid/unavailable timezone on this device — fall back to local.
+            hours = now.getHours();
+            minutes = now.getMinutes();
+            seconds = now.getSeconds();
+            dateText = now.toLocaleDateString("en-US", {
+                weekday: "short", year: "numeric", month: "short", day: "numeric"
+            });
+        }
+
+        dateEl.textContent = dateText;
+
+        const hourDeg = ((hours % 12) + minutes / 60) * 30;
+        const minuteDeg = (minutes + seconds / 60) * 6;
+        const secondDeg = seconds * 6;
+
+        setHandRotation("handHour", hourDeg);
+        setHandRotation("handMinute", minuteDeg);
+        setHandRotation("handSecond", secondDeg);
+    }
+
+    function formatHMS(totalSeconds) {
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = Math.floor(totalSeconds % 60);
+        return [h, m, s].map(v => String(v).padStart(2, "0")).join(":");
+    }
+
+    function formatMS(totalSeconds) {
+        const m = Math.floor(totalSeconds / 60);
+        const s = Math.floor(totalSeconds % 60);
+        return [m, s].map(v => String(v).padStart(2, "0")).join(":");
+    }
+
+    function toggleFocusMode() {
+        focusActive = !focusActive;
+
+        const pill = $("focusStatusPill");
+        const btn = $("focusToggleBtn");
+
+        if (focusActive) {
+            focusStartedAt = Date.now();
+            pill?.classList.add("active");
+            if (pill) pill.textContent = "ON";
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-stop"></i> STOP FOCUS';
+
+            focusIntervalId = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - focusStartedAt) / 1000);
+                setText("focusElapsed", formatHMS(elapsed));
+            }, 1000);
+
+            showToast("Focus mode started.", "success");
+        } else {
+            pill?.classList.remove("active");
+            if (pill) pill.textContent = "OFF";
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i> START FOCUS';
+
+            if (focusIntervalId) {
+                clearInterval(focusIntervalId);
+                focusIntervalId = null;
+            }
+
+            const totalElapsed = Math.floor((Date.now() - focusStartedAt) / 1000);
+            showToast(`Focus session ended — ${formatHMS(totalElapsed)}.`, "success");
+        }
+    }
+
+    function updateTimerDisplay() {
+        setText("timerDisplay", formatMS(timerRemainingSeconds));
+    }
+
+    function startPauseTimer() {
+        const btn = $("timerStartBtn");
+
+        if (timerRunning) {
+            timerRunning = false;
+            if (timerIntervalId) {
+                clearInterval(timerIntervalId);
+                timerIntervalId = null;
+            }
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i> RESUME';
+            return;
+        }
+
+        if (timerRemainingSeconds <= 0) {
+            const minutesInput = $("timerMinutesInput");
+            const minutes = Math.max(1, Math.min(180, parseInt(minutesInput?.value, 10) || 25));
+            timerTotalSeconds = minutes * 60;
+            timerRemainingSeconds = timerTotalSeconds;
+        }
+
+        timerRunning = true;
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-pause"></i> PAUSE';
+
+        timerIntervalId = setInterval(() => {
+            timerRemainingSeconds -= 1;
+            updateTimerDisplay();
+
+            if (timerRemainingSeconds <= 0) {
+                clearInterval(timerIntervalId);
+                timerIntervalId = null;
+                timerRunning = false;
+                if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i> START';
+                showToast("Timer finished!", "success");
+                playPcAlertSound();
+                try {
+                    if (Notification && Notification.permission === "granted") {
+                        new Notification("Timer finished");
+                    }
+                } catch (_) {}
+            }
+        }, 1000);
+    }
+
+    async function playPcAlertSound() {
+        try {
+            await apiJSON("/api/play_alert", { method: "POST" });
+        } catch (e) {
+            console.error("PC alert sound error:", e);
+        }
+    }
+
+    function resetTimer() {
+        timerRunning = false;
+        if (timerIntervalId) {
+            clearInterval(timerIntervalId);
+            timerIntervalId = null;
+        }
+
+        const minutesInput = $("timerMinutesInput");
+        const minutes = Math.max(1, Math.min(180, parseInt(minutesInput?.value, 10) || 25));
+        timerTotalSeconds = minutes * 60;
+        timerRemainingSeconds = timerTotalSeconds;
+        updateTimerDisplay();
+
+        const btn = $("timerStartBtn");
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i> START';
+    }
+
+    async function loadSystemStats() {
+        try {
+            const data = await apiJSON("/api/system_stats");
+
+            setText("statCpu", (data.cpu_percent ?? "--") + "%");
+            setText("statRam", (data.ram_percent ?? "--") + "%");
+
+            const batteryPill = $("statBatteryPill");
+            if (data.battery_percent === null || data.battery_percent === undefined) {
+                if (batteryPill) batteryPill.style.display = "none";
+            } else {
+                if (batteryPill) batteryPill.style.display = "";
+                let label = data.battery_percent + "%";
+                if (data.battery_plugged) label += " ⚡";
+                setText("statBattery", label);
+            }
+
+            const gpuPill = $("statGpuPill");
+            if (data.gpu_percent === null || data.gpu_percent === undefined) {
+                if (gpuPill) gpuPill.style.display = "none";
+            } else {
+                if (gpuPill) gpuPill.style.display = "";
+                setText("statGpu", data.gpu_percent + "%");
+            }
+
+            const tempPill = $("statTempPill");
+            if (data.cpu_temp_c === null || data.cpu_temp_c === undefined) {
+                if (tempPill) tempPill.style.display = "none";
+            } else {
+                if (tempPill) tempPill.style.display = "";
+                setText("statTemp", data.cpu_temp_c + "°C");
+            }
+
+            if (data.net_up_kbps === null || data.net_up_kbps === undefined) {
+                setText("statNet", "--");
+            } else {
+                const fmt = (kb) => kb >= 1024 ? (kb / 1024).toFixed(1) + "MB" : Math.round(kb) + "KB";
+                setText("statNet", `↑${fmt(data.net_up_kbps)} ↓${fmt(data.net_down_kbps)}`);
+            }
+        } catch (e) {
+            console.error("System stats error:", e);
+        }
+    }
+
+    const clockPages = ["clock", "focus", "timer", "alarm", "todo"];
+    let clockPageIndex = 0;
+
+    function showClockPage(index) {
+        clockPageIndex =
+            ((index % clockPages.length) + clockPages.length) % clockPages.length;
+
+        clockPages.forEach((name, i) => {
+            const page = $("clockPage-" + name);
+            if (page) page.classList.toggle("active", i === clockPageIndex);
+        });
+
+        document.querySelectorAll(".clock-dot").forEach((dot, i) => {
+            dot.classList.toggle("active", i === clockPageIndex);
+        });
+    }
+
+    function clockPageNav(direction) {
+        showClockPage(clockPageIndex + direction);
+    }
+
+    /* ---- ALARMS ---- */
+
+    let alarms = [];
+    let lastAlarmCheckMinute = null;
+
+    function loadAlarms() {
+        try {
+            alarms = JSON.parse(localStorage.getItem("ae_alarms") || "[]");
+        } catch (e) {
+            alarms = [];
+        }
+    }
+
+    function saveAlarms() {
+        try {
+            localStorage.setItem("ae_alarms", JSON.stringify(alarms));
+        } catch (e) {
+            console.error("Alarm save error:", e);
+        }
+    }
+
+    function renderAlarms() {
+        const container = $("alarmList");
+        if (!container) return;
+
+        if (!alarms.length) {
+            container.innerHTML =
+                '<div style="color:#64748b;font-size:9px;">No alarms yet.</div>';
+            return;
+        }
+
+        container.innerHTML = "";
+        alarms
+            .slice()
+            .sort((a, b) => a.time.localeCompare(b.time))
+            .forEach(alarm => {
+                const row = document.createElement("div");
+                row.className = "list-page-row" + (alarm.enabled ? "" : " done");
+
+                const text = document.createElement("div");
+                text.className = "list-item-text";
+                text.textContent = alarm.time;
+
+                const toggleBtn = document.createElement("button");
+                toggleBtn.className = "list-item-toggle" + (alarm.enabled ? " on" : "");
+                toggleBtn.textContent = alarm.enabled ? "ON" : "OFF";
+                toggleBtn.onclick = () => toggleAlarm(alarm.id);
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "list-item-del";
+                delBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                delBtn.onclick = () => deleteAlarm(alarm.id);
+
+                row.append(text, toggleBtn, delBtn);
+                container.appendChild(row);
+            });
+    }
+
+    function addAlarm() {
+        const input = $("alarmTimeInput");
+        const time = input?.value;
+        if (!time) return;
+
+        alarms.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            time,
+            enabled: true
+        });
+        saveAlarms();
+        renderAlarms();
+        if (input) input.value = "";
+    }
+
+    function toggleAlarm(id) {
+        const alarm = alarms.find(a => a.id === id);
+        if (alarm) alarm.enabled = !alarm.enabled;
+        saveAlarms();
+        renderAlarms();
+    }
+
+    function deleteAlarm(id) {
+        alarms = alarms.filter(a => a.id !== id);
+        saveAlarms();
+        renderAlarms();
+    }
+
+    function checkAlarms() {
+        if (!alarms.length) return;
+
+        const now = new Date();
+        const options = webuiTimezone ? { timeZone: webuiTimezone } : {};
+
+        let hh, mm;
+        try {
+            const fmt = new Intl.DateTimeFormat("en-US", {
+                ...options, hour12: false, hour: "2-digit", minute: "2-digit"
+            });
+            const parts = fmt.formatToParts(now);
+            hh = parts.find(p => p.type === "hour")?.value || "00";
+            mm = parts.find(p => p.type === "minute")?.value || "00";
+        } catch (e) {
+            hh = String(now.getHours()).padStart(2, "0");
+            mm = String(now.getMinutes()).padStart(2, "0");
+        }
+
+        const currentHM = `${hh}:${mm}`;
+        if (currentHM === lastAlarmCheckMinute) return;
+        lastAlarmCheckMinute = currentHM;
+
+        const match = alarms.find(a => a.enabled && a.time === currentHM);
+        if (match) {
+            showToast(`⏰ Alarm: ${currentHM}`, "success");
+            playPcAlertSound();
+            try {
+                if (Notification && Notification.permission === "granted") {
+                    new Notification("Alarm", { body: currentHM });
+                }
+            } catch (_) {}
+        }
+    }
+
+    /* ---- TODO LIST ---- */
+
+    let todos = [];
+
+    function loadTodos() {
+        try {
+            todos = JSON.parse(localStorage.getItem("ae_todos") || "[]");
+        } catch (e) {
+            todos = [];
+        }
+    }
+
+    function saveTodos() {
+        try {
+            localStorage.setItem("ae_todos", JSON.stringify(todos));
+        } catch (e) {
+            console.error("Todo save error:", e);
+        }
+    }
+
+    function renderTodos() {
+        const container = $("todoList");
+        if (!container) return;
+
+        if (!todos.length) {
+            container.innerHTML =
+                '<div style="color:#64748b;font-size:9px;">No tasks yet.</div>';
+            return;
+        }
+
+        container.innerHTML = "";
+        todos.forEach(todo => {
+            const row = document.createElement("div");
+            row.className = "list-page-row" + (todo.done ? " done" : "");
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = !!todo.done;
+            checkbox.onchange = () => toggleTodoDone(todo.id);
+
+            const text = document.createElement("div");
+            text.className = "list-item-text";
+            text.textContent = todo.text;
+
+            const delBtn = document.createElement("button");
+            delBtn.className = "list-item-del";
+            delBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+            delBtn.onclick = () => deleteTodo(todo.id);
+
+            row.append(checkbox, text, delBtn);
+            container.appendChild(row);
+        });
+    }
+
+    function addTodo() {
+        const input = $("todoTextInput");
+        const text = input?.value?.trim();
+        if (!text) return;
+
+        todos.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            text,
+            done: false
+        });
+        saveTodos();
+        renderTodos();
+        if (input) input.value = "";
+    }
+
+    function toggleTodoDone(id) {
+        const todo = todos.find(t => t.id === id);
+        if (todo) todo.done = !todo.done;
+        saveTodos();
+        renderTodos();
+    }
+
+    function deleteTodo(id) {
+        todos = todos.filter(t => t.id !== id);
+        saveTodos();
+        renderTodos();
+    }
+
+    function openClockModal() {
+        showModal("clockModal");
+        loadWebUISettings();
+
+        showClockPage(0);
+        tickLiveClock();
+        updateTimerDisplay();
+        loadSystemStats();
+
+        if (!clockIntervalId) {
+            clockIntervalId = setInterval(tickLiveClock, 1000);
+        }
+        if (!statsIntervalId) {
+            statsIntervalId = setInterval(loadSystemStats, 4000);
+        }
+
+        try {
+            if (Notification && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        } catch (_) {}
+    }
+
+    function closeClockModal() {
+        hideModal("clockModal");
+
+        if (statsIntervalId) {
+            clearInterval(statsIntervalId);
+            statsIntervalId = null;
+        }
+    }
+
+    /* ================= FILE UPLOAD (mobile -> PC Downloads) ================= */
+
+    function uploadFileToPC(fileList) {
+        const file = fileList?.[0];
+        if (!file) return;
+
+        const sourceSelect = $("mediaSourceSelect");
+        const sourceValue = sourceSelect ? sourceSelect.value : "";
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("source", sourceValue);
+
+        const wrap = $("uploadProgressWrap");
+        const fill = $("uploadProgressFill");
+        const text = $("uploadProgressText");
+
+        if (wrap) wrap.style.display = "flex";
+        if (fill) fill.style.width = "0%";
+        if (text) text.textContent = "0%";
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload_file");
+
+        xhr.upload.onprogress = (e) => {
+            if (!e.lengthComputable) return;
+            const pct = Math.round((e.loaded / e.total) * 100);
+            if (fill) fill.style.width = pct + "%";
+            if (text) text.textContent = pct + "%";
+        };
+
+        xhr.onload = () => {
+            let data = {};
+            try { data = JSON.parse(xhr.responseText); } catch (_) {}
+
+            if (xhr.status >= 200 && xhr.status < 300 && data.status !== "error") {
+                showToast(
+                    `Uploaded "${file.name}" → ${data.folder || "PC"}.`,
+                    "success"
+                );
+            } else {
+                showToast(data.message || "Upload failed.");
+            }
+
+            if (wrap) {
+                setTimeout(() => { wrap.style.display = "none"; }, 1200);
+            }
+
+            const input = $("uploadFileInput");
+            if (input) input.value = "";
+        };
+
+        xhr.onerror = () => {
+            showToast("Upload failed — connection error.");
+            if (wrap) wrap.style.display = "none";
+        };
+
+        xhr.send(formData);
     }
 
     /* ================= I/O MODAL ================= */
 
     function openIOModal() {
-
-        document.getElementById(
-            "ioModal"
-        ).style.display = "flex";
-
+        showModal("ioModal");
     }
 
     function closeIOModal() {
-
-        document.getElementById(
-            "ioModal"
-        ).style.display = "none";
-
+        hideModal("ioModal");
     }
 
-    function switchTab(
-        tabName,
-        btnElem
-    ) {
+    function switchTab(tabName, btnElem) {
+        const io = $("ioModal");
+        if (!io) return;
 
-        document
-            .querySelectorAll(
-                ".tab-pane"
-            )
-            .forEach(
-                p =>
-                    p.classList.remove(
-                        "active"
-                    )
-            );
-
-        document
-            .querySelectorAll(
-                ".tab-btn"
-            )
-            .forEach(
-                b =>
-                    b.classList.remove(
-                        "active"
-                    )
-            );
-
-        document
-            .getElementById(
-                "pane-" + tabName
-            )
-            .classList.add(
-                "active"
-            );
-
-        btnElem.classList.add(
-            "active"
+        io.querySelectorAll(".tab-pane").forEach(p =>
+            p.classList.remove("active")
         );
 
+        io.querySelectorAll(".tab-btn").forEach(b =>
+            b.classList.remove("active")
+        );
+
+        const pane = $("pane-" + tabName);
+        if (pane) pane.classList.add("active");
+
+        if (btnElem) btnElem.classList.add("active");
+    }
+
+    /* ================= REMOTE URL / MOBILE -> PC ================= */
+
+    function normalizePcUrl(raw) {
+        let value = String(raw || "").trim();
+        if (!value) return "";
+
+        /*
+         * Only HTTP/HTTPS URLs are sent to the PC browser.
+         * This prevents javascript:, file:, data:, etc. from being
+         * treated as remote browser URLs.
+         */
+        if (/^https?:\/\//i.test(value)) {
+            return value;
+        }
+
+        if (/^(www\.)/i.test(value)) {
+            return "https://" + value;
+        }
+
+        /*
+         * If it looks like a domain, turn it into HTTPS.
+         * Otherwise the existing Search button behaves as a Google search.
+         */
+        if (/^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(value)) {
+            return "https://" + value;
+        }
+
+        return "";
+    }
+
+    async function openPcUrl(url) {
+        const clean = normalizePcUrl(url);
+
+        if (!clean) {
+            throw new Error("Valid HTTP/HTTPS link required.");
+        }
+
+        return apiJSON("/api/open_url", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({url: clean})
+        });
+    }
+
+    async function searchFromKeyboard() {
+        const input = $("typeInput");
+        const raw = String(input?.value || "").trim();
+
+        if (!raw) {
+            alert("Paste a link or type something to search.");
+            input?.focus();
+            return;
+        }
+
+        const url = normalizePcUrl(raw);
+
+        try {
+            if (url) {
+                await openPcUrl(url);
+                setText("playerCurrent", "Opened on PC: " + url);
+            } else {
+                const googleUrl =
+                    "https://www.google.com/search?q=" +
+                    encodeURIComponent(raw);
+
+                await openPcUrl(googleUrl);
+            }
+
+            if (input) input.value = "";
+        } catch (e) {
+            alert(
+                "PC browser open failed:\n" +
+                (e.message || "Unknown error")
+            );
+        }
+    }
+
+    /*
+     * Alias for a future dedicated Mobile -> PC URL button.
+     * Existing HTML can keep using searchFromKeyboard().
+     */
+    async function openLinkOnPC() {
+        return searchFromKeyboard();
     }
 
     /* ================= KEYBOARD ================= */
 
     const keyboardKeys = [
-
         "esc",
-
-        "f1","f2","f3","f4",
-        "f5","f6","f7","f8",
-        "f9","f10","f11","f12",
-
+        "f1","f2","f3","f4","f5","f6","f7","f8","f9","f10","f11","f12",
         "`",
-
-        "1","2","3","4","5",
-        "6","7","8","9","0",
-
+        "1","2","3","4","5","6","7","8","9","0",
         "-","=",
-
         "backspace",
-
         "tab",
-
-        "q","w","e","r","t",
-        "y","u","i","o","p",
-
+        "q","w","e","r","t","y","u","i","o","p",
         "[","]","\\",
-
         "capslock",
-
-        "a","s","d","f","g",
-        "h","j","k","l",
-
+        "a","s","d","f","g","h","j","k","l",
         ";","'",
-
         "enter",
-
         "shift",
-
-        "z","x","c","v","b",
-        "n","m",
-
+        "z","x","c","v","b","n","m",
         ",",".","/",
-
         "up",
-
         "ctrl",
         "win",
         "alt",
         "space",
         "alt",
-
-        "left",
-        "down",
-        "right"
-
+        "left","down","right"
     ];
 
-    const vkContainer =
-        document.getElementById(
-            "virtualKeyboardGrid"
-        );
+    function buildVirtualKeyboard() {
+        const vkContainer = $("virtualKeyboardGrid");
+        if (!vkContainer) return;
 
-    keyboardKeys.forEach(k => {
+        vkContainer.innerHTML = "";
 
-        const kbBtn =
-            document.createElement(
-                "button"
-            );
+        keyboardKeys.forEach(k => {
+            const kbBtn = document.createElement("button");
+            kbBtn.className = "vk-btn";
+            kbBtn.textContent = k.toUpperCase();
 
-        kbBtn.className =
-            "vk-btn";
-
-        kbBtn.innerText =
-            k.toUpperCase();
-
-        kbBtn.onclick = () => {
-
-            socket.emit(
-                "keyboard_action",
-                {
+            kbBtn.onclick = () => {
+                socketEmit("keyboard_action", {
                     type: "press",
                     payload: k
-                }
-            );
+                });
+            };
 
-        };
-
-        vkContainer.appendChild(
-            kbBtn
-        );
-
-    });
+            vkContainer.appendChild(kbBtn);
+        });
+    }
 
     function sendTypedText() {
+        const input = $("typeInput");
+        const val = String(input?.value || "");
 
-        const input =
-            document.getElementById(
-                "typeInput"
-            );
+        if (!val) return;
 
-        const val =
-            input.value;
-
-        if (!val)
-            return;
-
-        socket.emit(
-            "keyboard_action",
-            {
-                type: "write",
-                payload: val
-            }
-        );
+        socketEmit("keyboard_action", {
+            type: "write",
+            payload: val
+        });
 
         input.value = "";
-
     }
 
     /* ================= TRACKPAD ================= */
 
-    const tpBox =
-        document.getElementById(
-            "trackpadBox"
-        );
+    function initTrackpad() {
+        const tpBox = $("trackpadBox");
+        if (!tpBox) return;
 
-    let startX = 0;
-    let startY = 0;
+        let startX = 0;
+        let startY = 0;
 
-    tpBox.addEventListener(
-        "pointerdown",
-        e => {
+        tpBox.addEventListener("pointerdown", e => {
+            startX = e.clientX;
+            startY = e.clientY;
+
+            try {
+                tpBox.setPointerCapture(e.pointerId);
+            } catch (_) {}
+        });
+
+        tpBox.addEventListener("pointermove", e => {
+            if (e.buttons === 0) return;
+            if (!socket || !socket.connected) return;
+
+            const dx = (e.clientX - startX) * 1.5;
+            const dy = (e.clientY - startY) * 1.5;
 
             startX = e.clientX;
             startY = e.clientY;
 
-            tpBox.setPointerCapture(
-                e.pointerId
-            );
-
-        }
-    );
-
-    tpBox.addEventListener(
-        "pointermove",
-        e => {
-
-            if (e.buttons === 0)
-                return;
-
-            const dx =
-                (e.clientX - startX) *
-                1.5;
-
-            const dy =
-                (e.clientY - startY) *
-                1.5;
-
-            startX = e.clientX;
-            startY = e.clientY;
-
-            socket.emit(
-                "mouse_action",
-                {
-                    action: "move",
-                    dx: dx,
-                    dy: dy
-                }
-            );
-
-        }
-    );
-
-    function sendMouseClick(
-        actionType
-    ) {
-
-        socket.emit(
-            "mouse_action",
-            {
-                action:
-                    actionType
-            }
-        );
-
+            socket.emit("mouse_action", {
+                action: "move",
+                dx,
+                dy
+            });
+        });
     }
 
-    /* ================= CLOSE MODALS ON BACKDROP ================= */
+    function sendMouseClick(actionType) {
+        socketEmit("mouse_action", {
+            action: actionType
+        });
+    }
 
-    document
-        .querySelectorAll(
-            ".modal-overlay"
-        )
-        .forEach(modal => {
+    /* ================= HID / CAPTURE ================= */
 
-            modal.addEventListener(
-                "click",
-                e => {
+    async function hidRequest(url, options = {}) {
+        return apiJSON(url, options);
+    }
 
-                    if (
-                        e.target ===
-                        modal
-                    ) {
+    function openHIDModal() {
+        if (!showModal("hidModal")) return;
 
-                        modal.style.display =
-                            "none";
+        switchHIDTab("hid", $("hidTabBtn"));
+        loadHIDManager();
+        loadCaptureDevices();
+    }
 
-                    }
+    function closeHIDModal() {
+        hideModal("hidModal");
+    }
 
-                }
+    function switchHIDTab(tab, btn) {
+        const hid = $("hidTabPane");
+        const cap = $("captureTabPane");
+        const hb = $("hidTabBtn");
+        const cb = $("captureTabBtn");
+
+        if (!hid || !cap) return;
+
+        hid.style.display = tab === "hid" ? "block" : "none";
+        cap.style.display = tab === "capture" ? "block" : "none";
+
+        hb?.classList.toggle("active", tab === "hid");
+        cb?.classList.toggle("active", tab === "capture");
+
+        if (tab === "capture") {
+            loadCaptureDevices();
+        }
+
+        btn?.blur();
+    }
+
+    async function loadHIDManager() {
+        const hidStatus = $("hidStatus");
+
+        try {
+            const status = await hidRequest("/api/hid/status");
+            const cap = status.capture || status.capture_config || {};
+            const active =
+                status.capture_active ??
+                cap.capture_active ??
+                false;
+
+            if (hidStatus) {
+                hidStatus.textContent =
+                    `HID: ${status.enabled ? "ENABLED" : "DISABLED"} | ` +
+                    `Capture: ${active ? "ON" : "OFF"}`;
+            }
+
+            updateCaptureButtons(status);
+        } catch (e) {
+            if (hidStatus) {
+                hidStatus.textContent =
+                    "HID status error: " + e.message;
+            }
+        }
+
+        await loadHIDScripts();
+    }
+
+    async function setHIDEnabled(enabled) {
+        try {
+            await hidRequest("/api/hid/toggle", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({enabled: !!enabled})
+            });
+
+            await loadHIDManager();
+        } catch (e) {
+            alert("HID: " + e.message);
+        }
+    }
+
+    function normalizeScripts(data) {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.scripts)) return data.scripts;
+        if (Array.isArray(data?.items)) return data.items;
+        return [];
+    }
+
+    async function loadHIDScripts() {
+        const box = $("hidScriptList");
+        if (!box) return;
+
+        try {
+            const scripts =
+                normalizeScripts(
+                    await hidRequest("/api/hid/scripts")
+                );
+
+            box.innerHTML = "";
+
+            if (!scripts.length) {
+                box.innerHTML =
+                    '<div style="color:#8b929a;font-size:10px;">No saved HID scripts.</div>';
+                return;
+            }
+
+            scripts.forEach(script => {
+                const row = document.createElement("div");
+                row.style.cssText =
+                    "display:flex;gap:5px;align-items:center;" +
+                    "background:#1b2838;border:1px solid #2a475e;" +
+                    "border-radius:6px;padding:6px;";
+
+                const icon = document.createElement("div");
+                icon.innerHTML =
+                    '<i class="fa-solid fa-file-code" style="color:#38bdf8;font-size:16px;"></i>';
+                icon.style.cssText =
+                    "width:22px;text-align:center;flex:none;";
+
+                const name = document.createElement("div");
+                name.style.cssText =
+                    "flex:1;font-size:10px;color:#fff;" +
+                    "overflow:hidden;text-overflow:ellipsis;" +
+                    "white-space:nowrap;";
+                name.textContent = script.name || "Unnamed";
+                name.title = script.name || "Unnamed";
+
+                const edit = document.createElement("button");
+                edit.className = "sound-control-btn";
+                edit.title = "Edit";
+                edit.innerHTML =
+                    '<i class="fa-solid fa-pen"></i>';
+                edit.onclick = () => {
+                    $("hidScriptName").value =
+                        script.name || "";
+                    $("hidScriptContent").value =
+                        script.content ||
+                        script.script ||
+                        "";
+                };
+
+                const run = document.createElement("button");
+                run.className = "sound-control-btn";
+                run.title = "Run script";
+                run.innerHTML =
+                    '<i class="fa-solid fa-play"></i>';
+                run.onclick = () =>
+                    runHIDScript(script.name);
+
+                const del = document.createElement("button");
+                del.className = "sound-control-btn";
+                del.title = "Delete";
+                del.innerHTML =
+                    '<i class="fa-solid fa-trash"></i>';
+                del.onclick = () =>
+                    deleteHIDScript(script.name);
+
+                row.append(icon, name, edit, run, del);
+                box.appendChild(row);
+            });
+        } catch (e) {
+            console.error("HID scripts error:", e);
+            box.innerHTML =
+                '<div style="color:#f87171;font-size:10px;">Could not load HID scripts.</div>';
+        }
+    }
+
+    async function saveHIDScript() {
+        const nameEl = $("hidScriptName");
+        const contentEl = $("hidScriptContent");
+
+        const name = String(nameEl?.value || "").trim();
+        const content = String(contentEl?.value || "");
+
+        if (!name) {
+            alert("Script name is required.");
+            return;
+        }
+
+        if (!content.trim()) {
+            alert("Script content is required.");
+            return;
+        }
+
+        try {
+            await hidRequest("/api/hid/script", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({name, content})
+            });
+
+            await loadHIDScripts();
+            alert("Script saved: " + name);
+        } catch (e) {
+            alert("Save failed: " + e.message);
+        }
+    }
+
+    async function deleteHIDScript(name) {
+        if (!name) return;
+
+        if (!confirm("Delete HID script: " + name + "?")) {
+            return;
+        }
+
+        try {
+            await hidRequest("/api/hid/script", {
+                method: "DELETE",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({name})
+            });
+
+            if ($("hidScriptName")?.value === name) {
+                clearHIDEditor();
+            }
+
+            await loadHIDScripts();
+        } catch (e) {
+            alert("Delete failed: " + e.message);
+        }
+    }
+
+    async function runHIDScript(name) {
+        if (!name) return;
+
+        try {
+            const data = await hidRequest("/api/hid/run", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({name})
+            });
+
+            if (data.message) {
+                alert(data.message);
+            }
+        } catch (e) {
+            alert("Run failed: " + e.message);
+        }
+    }
+
+    function clearHIDEditor() {
+        if ($("hidScriptName")) {
+            $("hidScriptName").value = "";
+        }
+
+        if ($("hidScriptContent")) {
+            $("hidScriptContent").value = "";
+        }
+    }
+
+    /* ================= DEVICE CAPTURE ================= */
+
+    let captureConfig = {
+        enabled: false,
+        camera_enabled: false,
+        microphone_enabled: false,
+        screen_enabled: false,
+        camera_device: 0,
+        microphone_device: "default",
+        screen_display: 1
+    };
+
+    let captureRuntimeActive = false;
+    let captureRuntimeState = {};
+
+    function normalizeDeviceList(list, type) {
+        if (!Array.isArray(list)) {
+            if (list && Array.isArray(list.devices)) {
+                list = list.devices;
+            } else if (list && typeof list === "object") {
+                list = Object.entries(list)
+                    .map(([id, name]) => ({id, name}));
+            } else {
+                list = [];
+            }
+        }
+
+        return list.map((d, i) => {
+            if (typeof d === "string") {
+                return {
+                    id: i,
+                    name: d
+                };
+            }
+
+            const id =
+                d?.id ??
+                d?.index ??
+                d?.device ??
+                d?.device_id ??
+                d?.screen_device ??
+                i;
+
+            return {
+                id,
+                name:
+                    d?.name ??
+                    d?.label ??
+                    d?.title ??
+                    `${type} ${i + 1}`,
+                width: d?.width,
+                height: d?.height
+            };
+        });
+    }
+
+    function fillDeviceSelect(id, list, selected, emptyText) {
+        const el = $(id);
+        if (!el) return;
+
+        el.innerHTML = "";
+
+        const type =
+            id.toLowerCase().includes("mic")
+                ? "Microphone"
+                : id.toLowerCase().includes("camera")
+                    ? "Camera"
+                    : "Screen";
+
+        list = normalizeDeviceList(list, type);
+
+        if (!list.length) {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = emptyText || "No device found";
+            el.appendChild(opt);
+            el.disabled = true;
+            return;
+        }
+
+        el.disabled = false;
+
+        list.forEach((d, i) => {
+            const opt = document.createElement("option");
+
+            /*
+             * Backend capture uses numeric OpenCV/sounddevice/mss
+             * indexes. Keep backend IDs intact.
+             */
+            opt.value = String(d.id);
+            opt.textContent =
+                d.name +
+                (
+                    d.width && d.height
+                        ? ` (${d.width}x${d.height})`
+                        : ""
+                );
+
+            if (String(d.id) === String(selected)) {
+                opt.selected = true;
+            }
+
+            el.appendChild(opt);
+        });
+    }
+
+    async function loadCaptureDevices() {
+        const statusEl = $("captureStatus");
+
+        try {
+            /*
+             * IMPORTANT:
+             * Use PC-side devices from hid_manager.py.
+             * Browser enumerateDevices() is intentionally NOT used
+             * because browser device IDs are not valid backend indexes.
+             */
+            const status =
+                await hidRequest("/api/hid/status");
+
+            const devices =
+                await hidRequest("/api/hid/devices");
+
+            captureConfig = Object.assign(
+                {},
+                captureConfig,
+                status.capture_config || {},
+                status.capture || {}
             );
 
+            captureRuntimeActive = !!(
+                status.capture_active ??
+                captureConfig.capture_active ??
+                false
+            );
+
+            captureRuntimeState =
+                status.capture_state ||
+                captureConfig.active ||
+                {};
+
+            const mic = normalizeDeviceList(
+                devices.microphone ||
+                devices.microphones ||
+                devices.audio ||
+                devices.audio_input,
+                "Microphone"
+            );
+
+            const cam = normalizeDeviceList(
+                devices.camera ||
+                devices.cameras ||
+                devices.video ||
+                devices.video_input,
+                "Camera"
+            );
+
+            const screen = normalizeDeviceList(
+                devices.screen ||
+                devices.screens ||
+                devices.display ||
+                devices.displays ||
+                devices.monitors,
+                "Screen"
+            );
+
+            fillDeviceSelect(
+                "captureMicDevice",
+                mic,
+                captureConfig.microphone_device,
+                "No PC microphone found"
+            );
+
+            fillDeviceSelect(
+                "captureCameraDevice",
+                cam,
+                captureConfig.camera_device,
+                "No PC camera found"
+            );
+
+            fillDeviceSelect(
+                "captureScreenDevice",
+                screen,
+                captureConfig.screen_display ??
+                captureConfig.screen_device ??
+                1,
+                "No PC display found"
+            );
+
+            if (statusEl && !mic.length && !cam.length && !screen.length) {
+                statusEl.textContent =
+                    "No PC capture devices returned by backend.";
+            }
+
+            updateCaptureButtons(status);
+        } catch (e) {
+            console.error("Capture device error:", e);
+
+            if (statusEl) {
+                statusEl.textContent =
+                    "Device error: " + e.message;
+            }
+
+            updateCaptureButtons();
+        }
+    }
+
+    async function saveCaptureConfig(patch) {
+        const oldConfig = {...captureConfig};
+        captureConfig = Object.assign(
+            {},
+            captureConfig,
+            patch
+        );
+
+        try {
+            const data =
+                await hidRequest(
+                    "/api/hid/capture/config",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":"application/json"
+                        },
+                        body: JSON.stringify(patch)
+                    }
+                );
+
+            captureConfig = Object.assign(
+                {},
+                captureConfig,
+                data.capture ||
+                data.config ||
+                {}
+            );
+
+            updateCaptureButtons();
+            return true;
+        } catch (e) {
+            captureConfig = oldConfig;
+            updateCaptureButtons();
+            alert("Capture setting failed: " + e.message);
+            return false;
+        }
+    }
+
+    function convertDeviceValue(key, value) {
+        if (value === "") return value;
+
+        /*
+         * screen_display, camera_device and microphone_device can
+         * be numeric indexes. Keep "default" as a string.
+         */
+        if (
+            key === "camera_device" ||
+            key === "screen_display" ||
+            key === "screen_device"
+        ) {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : value;
+        }
+
+        if (key === "microphone_device") {
+            if (String(value).toLowerCase() === "default") {
+                return "default";
+            }
+
+            const n = Number(value);
+            return Number.isFinite(n) ? n : value;
+        }
+
+        return value;
+    }
+
+    function saveCaptureDevice(key, value) {
+        if (value === "") return;
+
+        const converted = convertDeviceValue(key, value);
+
+        const patch = {[key]: converted};
+
+        if (key === "screen_display") {
+            patch.screen_device = converted;
+        }
+
+        saveCaptureConfig(patch);
+    }
+
+    function toggleCaptureDevice(type) {
+        const key = type + "_enabled";
+
+        saveCaptureConfig({
+            [key]: !captureConfig[key]
         });
+    }
+
+    async function clickPicture() {
+        const btn = $("clickPictureBtn");
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CAPTURING...';
+        }
+
+        try {
+            const res = await apiJSON("/api/capture_photo", { method: "POST" });
+            showToast(`Photo saved: ${res.file || "captured"}`, "success");
+        } catch (e) {
+            showToast(e.message || "Could not capture photo.");
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-camera"></i> CLICK PICTURE';
+            }
+        }
+    }
+
+    function captureSetAll(enabled) {
+        /*
+         * Do not depend on a fake "master enabled" property.
+         * The backend actually starts whichever three capture flags
+         * are enabled.
+         */
+        saveCaptureConfig({
+            camera_enabled: !!enabled,
+            microphone_enabled: !!enabled,
+            screen_enabled: !!enabled
+        });
+    }
+
+    function updateCaptureButtons(status = null) {
+        if (status) {
+            captureRuntimeActive = !!(
+                status.capture_active ??
+                status.capture?.capture_active ??
+                captureRuntimeActive
+            );
+
+            captureRuntimeState =
+                status.capture_state ||
+                status.capture?.active ||
+                captureRuntimeState ||
+                {};
+        }
+
+        [
+            ["micCaptureBtn","microphone_enabled","MICROPHONE"],
+            ["cameraCaptureBtn","camera_enabled","CAMERA"],
+            ["screenCaptureBtn","screen_enabled","SCREEN"]
+        ].forEach(([id,key,label]) => {
+            const b = $(id);
+            if (!b) return;
+
+            const on = !!captureConfig[key];
+
+            b.innerHTML =
+                `<i class="fa-solid fa-${on ? "toggle-on" : "toggle-off"}"></i> ` +
+                `${label}: ${on ? "ON" : "OFF"}`;
+        });
+
+        const active =
+            captureRuntimeState ||
+            captureConfig.active ||
+            {};
+
+        const st = $("captureStatus");
+
+        if (st) {
+            st.textContent =
+                `Configured — Mic:${captureConfig.microphone_enabled ? "ON" : "OFF"} ` +
+                `Cam:${captureConfig.camera_enabled ? "ON" : "OFF"} ` +
+                `Screen:${captureConfig.screen_enabled ? "ON" : "OFF"} | ` +
+                `Capture: ${captureRuntimeActive ? "RUNNING" : "STOPPED"}`;
+
+            if (active.error) {
+                st.textContent +=
+                    " | Error: " + active.error;
+            }
+        }
+    }
+
+    async function startDeviceCapture() {
+        try {
+            /*
+             * Backend start_capture requires HID manager to be enabled.
+             * If disabled, enable it automatically so CAPTURE actually
+             * works from this combined HID/CAPTURE panel.
+             */
+            let status =
+                await hidRequest("/api/hid/status");
+
+            if (!status.enabled) {
+                const enable = confirm(
+                    "HID Manager is disabled.\n\n" +
+                    "Enable HID Manager and start capture?"
+                );
+
+                if (!enable) return;
+
+                await hidRequest("/api/hid/toggle", {
+                    method: "POST",
+                    headers: {"Content-Type":"application/json"},
+                    body: JSON.stringify({enabled:true})
+                });
+            }
+
+            const data =
+                await hidRequest(
+                    "/api/hid/capture/start",
+                    {method:"POST"}
+                );
+
+            captureRuntimeActive = true;
+            captureRuntimeState =
+                data.active ||
+                data.capture ||
+                {};
+
+            captureConfig =
+                Object.assign(
+                    {},
+                    captureConfig,
+                    data.capture || {}
+                );
+
+            updateCaptureButtons();
+        } catch (e) {
+            alert("Start capture failed:\n" + e.message);
+        }
+    }
+
+    async function stopDeviceCapture() {
+        try {
+            const data =
+                await hidRequest(
+                    "/api/hid/capture/stop",
+                    {method:"POST"}
+                );
+
+            captureRuntimeActive = false;
+            captureRuntimeState =
+                data.active ||
+                data.capture ||
+                {};
+
+            updateCaptureButtons();
+        } catch (e) {
+            alert("Stop capture failed:\n" + e.message);
+        }
+    }
+
+    function closeCaptureModal() {
+        /*
+         * Kept for compatibility with any old inline handler.
+         * The duplicate hidden capture modal was removed; capture
+         * now lives only in the HID / CAPTURE modal.
+         */
+        hideModal("captureModal");
+    }
+
+    /* ================= BACKDROP ================= */
+
+    function initModalBackdrops() {
+        document
+            .querySelectorAll(".modal-overlay")
+            .forEach(modal => {
+                if (modal.dataset.backdropBound === "1") return;
+
+                modal.dataset.backdropBound = "1";
+
+                modal.addEventListener("click", e => {
+                    if (e.target === modal) {
+                        modal.style.display = "none";
+                    }
+                });
+            });
+    }
 
     /* ================= INITIAL LOAD ================= */
 
-    loadCustomShortcuts();
-    loadMediaSources();
-    loadMedia();
-    loadSoundboard();
-    loadApps();
+    function initApp() {
+        buildVirtualKeyboard();
+        initTrackpad();
+        initModalBackdrops();
 
+        loadCustomShortcuts();
+        loadMediaSources();
+        loadMedia();
+        loadSoundboard();
+        loadApps();
+
+        loadAlarms();
+        renderAlarms();
+        loadTodos();
+        renderTodos();
+        setInterval(checkAlarms, 15000);
+
+        /*
+         * Backend-only PC device discovery.
+         * No browser microphone/camera permission popup.
+         */
+        loadCaptureDevices();
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initApp, {
+            once: true
+        });
+    } else {
+        initApp();
+    }
 </script>
 
 </body>
